@@ -193,7 +193,7 @@ struct HabitGridView: View {
           withAnimation { goal.isDeleted = true }
         }
       )
-      .frame(width: goalColumnWidth, height: cellSize)
+      .frame(width: goalColumnWidth)
 
       CompletionCellView(
         goal: goal,
@@ -201,7 +201,7 @@ struct HabitGridView: View {
         cellAge: cellAge(for: todayDateKey)
       )
     }
-    .frame(height: cellSize)
+    .frame(minHeight: cellSize)
   }
 
   // MARK: - Add Goal Button

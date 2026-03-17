@@ -13,8 +13,9 @@ struct GoalNameView: View {
   var body: some View {
     Group {
       if isEditing {
-        TextField("goal name", text: $editText)
+        TextField("goal name", text: $editText, axis: .vertical)
           .font(.body)
+          .lineLimit(1...2)
           .multilineTextAlignment(.center)
           .focused($isFocused)
           .onSubmit { commitRename() }
@@ -24,6 +25,8 @@ struct GoalNameView: View {
       } else {
         Text(goal.name.isEmpty ? "untitled" : goal.name)
           .font(.body)
+          .lineLimit(1...2)
+          .truncationMode(.tail)
           .foregroundStyle(
             goal.name.isEmpty ? .secondary : .primary
           )
@@ -42,7 +45,7 @@ struct GoalNameView: View {
           }
       }
     }
-    .frame(height: 56)
+    .frame(minHeight: 48)
     .frame(maxWidth: .infinity)
     .onAppear {
       if startEditing {
