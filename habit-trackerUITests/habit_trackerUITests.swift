@@ -37,20 +37,19 @@ final class habit_trackerUITests: XCTestCase {
   func testAddGoalCreatesRow() throws {
     tapAddGoalButton()
 
-    // A text field should appear for the new goal name
-    let textField = app.textFields["goal name"]
-    XCTAssertTrue(
-      textField.waitForExistence(timeout: 3),
-      "Goal name text field should appear after tapping +"
+    // The new goal's field should appear and be focused
+    let field = findEditingGoalField()
+    XCTAssertNotNil(
+      field,
+      "Goal name field should appear after tapping +"
     )
 
-    // Type a goal name and submit
-    textField.typeText("Exercise\n")
+    // Type a goal name and press return to commit
+    field!.typeText("Exercise\n")
 
-    // The goal name should now appear as static text
-    let goalText = app.staticTexts["Exercise"]
+    // The goal name should now appear in a disabled field
     XCTAssertTrue(
-      goalText.waitForExistence(timeout: 3),
+      goalFieldExists(withName: "Exercise"),
       "Goal name 'Exercise' should appear after submission"
     )
   }
@@ -61,13 +60,11 @@ final class habit_trackerUITests: XCTestCase {
   func testTapTodayCellTogglesCompletion() throws {
     addGoalWithName("Meditate")
 
-    let goalText = app.staticTexts["Meditate"]
-    XCTAssertTrue(
-      goalText.waitForExistence(timeout: 3)
-    )
+    let goalField = findGoalField(withName: "Meditate")
+    XCTAssertNotNil(goalField)
 
     // Tap to the right of the goal name (today's cell)
-    let goalFrame = goalText.frame
+    let goalFrame = goalField!.frame
     let tapPoint = CGPoint(
       x: goalFrame.maxX + 40,
       y: goalFrame.midY
@@ -100,8 +97,8 @@ final class habit_trackerUITests: XCTestCase {
     // The intention field could be a textField or textView
     // depending on SwiftUI version. Try both.
     var field: XCUIElement
-    let tf = app.textFields.firstMatch
-    let tv = app.textViews.firstMatch
+    let tf = app.textFields["intentionField"]
+    let tv = app.textViews["intentionField"]
     if tf.waitForExistence(timeout: 2) {
       field = tf
     } else if tv.waitForExistence(timeout: 2) {
@@ -128,30 +125,29 @@ final class habit_trackerUITests: XCTestCase {
   func testDoubleTapGoalNameEntersEditMode() throws {
     addGoalWithName("OldName")
 
-    let goalText = app.staticTexts["OldName"]
-    XCTAssertTrue(
-      goalText.waitForExistence(timeout: 3)
-    )
+    let goalField = findGoalField(withName: "OldName")
+    XCTAssertNotNil(goalField)
 
     // Double-tap to enter edit mode
-    goalText.doubleTap()
+    goalField!.doubleTap()
 
-    // A text field should appear
-    let editField = app.textFields["goal name"]
-    XCTAssertTrue(
-      editField.waitForExistence(timeout: 3),
-      "Edit field should appear on double-tap"
+    // Wait for edit mode to activate
+    Thread.sleep(forTimeInterval: 0.5)
+
+    // The field should now be enabled/focused
+    let editField = findEditingGoalField()
+    XCTAssertNotNil(
+      editField,
+      "Edit field should be active on double-tap"
     )
 
     // Clear existing text and type new name
-    // Triple-tap selects all in a text field
-    editField.tap(withNumberOfTaps: 3, numberOfTouches: 1)
-    editField.typeText("NewName\n")
+    editField!.tap(withNumberOfTaps: 3, numberOfTouches: 1)
+    editField!.typeText("NewName\n")
 
     // New name should appear
-    let newGoalText = app.staticTexts["NewName"]
     XCTAssertTrue(
-      newGoalText.waitForExistence(timeout: 3),
+      goalFieldExists(withName: "NewName"),
       "Renamed goal 'NewName' should appear"
     )
   }
@@ -209,20 +205,20 @@ final class habit_trackerUITests: XCTestCase {
     addGoalWithName("Beta")
     addGoalWithName("Gamma")
 
-    let alpha = app.staticTexts["Alpha"]
-    let beta = app.staticTexts["Beta"]
-    let gamma = app.staticTexts["Gamma"]
+    let alpha = findGoalField(withName: "Alpha")
+    let beta = findGoalField(withName: "Beta")
+    let gamma = findGoalField(withName: "Gamma")
 
-    XCTAssertTrue(alpha.waitForExistence(timeout: 3))
-    XCTAssertTrue(beta.exists)
-    XCTAssertTrue(gamma.exists)
+    XCTAssertNotNil(alpha)
+    XCTAssertNotNil(beta)
+    XCTAssertNotNil(gamma)
 
     XCTAssertLessThan(
-      alpha.frame.minY, beta.frame.minY,
+      alpha!.frame.minY, beta!.frame.minY,
       "Alpha should appear above Beta"
     )
     XCTAssertLessThan(
-      beta.frame.minY, gamma.frame.minY,
+      beta!.frame.minY, gamma!.frame.minY,
       "Beta should appear above Gamma"
     )
   }
@@ -239,16 +235,72 @@ final class habit_trackerUITests: XCTestCase {
     btn.tap()
   }
 
+  /// Finds the currently editing (enabled/focused) goal
+  /// name field. Only one should be active at a time.
+  @MainActor
+  private func findEditingGoalField() -> XCUIElement? {
+    // Try textFields first, then textViews
+    for query in [
+      app.textFields, app.textViews
+    ] {
+      let fields = query.matching(
+        identifier: "goalNameField"
+      )
+      // Wait for at least one to appear
+      if !fields.firstMatch
+        .waitForExistence(timeout: 3) { continue }
+      for i in 0..<fields.count {
+        let f = fields.element(boundBy: i)
+        if f.isEnabled { return f }
+      }
+    }
+    return nil
+  }
+
+  /// Finds a goal name field displaying the given name.
+  @MainActor
+  private func findGoalField(
+    withName name: String
+  ) -> XCUIElement? {
+    // Goal names are in disabled TextFields with the
+    // name as the value
+    for query in [
+      app.textFields, app.textViews
+    ] {
+      let fields = query.matching(
+        identifier: "goalNameField"
+      )
+      for i in 0..<fields.count {
+        let f = fields.element(boundBy: i)
+        if f.exists,
+          let val = f.value as? String, val == name
+        {
+          return f
+        }
+      }
+    }
+    return nil
+  }
+
+  /// Checks if a goal field with the given name exists.
+  @MainActor
+  private func goalFieldExists(
+    withName name: String
+  ) -> Bool {
+    // Wait briefly for UI to settle
+    Thread.sleep(forTimeInterval: 0.5)
+    return findGoalField(withName: name) != nil
+  }
+
   @MainActor
   private func addGoalWithName(_ name: String) {
     tapAddGoalButton()
 
-    let textField = app.textFields["goal name"]
-    if textField.waitForExistence(timeout: 3) {
-      textField.typeText("\(name)\n")
+    if let field = findEditingGoalField() {
+      field.typeText("\(name)\n")
     }
 
-    _ = app.staticTexts[name]
-      .waitForExistence(timeout: 2)
+    // Wait for the name to commit
+    Thread.sleep(forTimeInterval: 0.5)
   }
 }

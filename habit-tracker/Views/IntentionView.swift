@@ -48,6 +48,7 @@ struct IntentionView: View {
       .font(.title)
       .multilineTextAlignment(.center)
       .focused(isFocused)
+      .accessibilityIdentifier("intentionField")
       .onSubmit {
         isFocused.wrappedValue = false
       }

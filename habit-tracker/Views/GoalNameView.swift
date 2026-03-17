@@ -11,25 +11,37 @@ struct GoalNameView: View {
   var onArchive: (() -> Void)? = nil
 
   var body: some View {
-    Group {
-      if isEditing {
-        TextField("goal name", text: $editText, axis: .vertical)
-          .font(.body)
-          .lineLimit(1...2)
-          .multilineTextAlignment(.center)
-          .focused($isFocused)
-          .onSubmit { commitRename() }
-          .onChange(of: isFocused) { _, focused in
-            if !focused { commitRename() }
-          }
-      } else {
-        Text(goal.name.isEmpty ? "untitled" : goal.name)
-          .font(.body)
-          .lineLimit(1...2)
-          .truncationMode(.tail)
-          .foregroundStyle(
-            goal.name.isEmpty ? .secondary : .primary
-          )
+    TextField(
+      "untitled",
+      text: isEditing ? $editText : .constant(goal.name),
+      axis: .vertical
+    )
+    .font(.body)
+    .lineLimit(1...2)
+    .multilineTextAlignment(.center)
+    .focused($isFocused)
+    .disabled(!isEditing)
+    .foregroundStyle(
+      goal.name.isEmpty && !isEditing
+        ? .secondary : .primary
+    )
+    .accessibilityIdentifier("goalNameField")
+    .onSubmit { commitRename() }
+    .onChange(of: editText) { _, newValue in
+      if newValue.contains("\n") {
+        editText = newValue.replacingOccurrences(
+          of: "\n", with: ""
+        )
+        commitRename()
+      }
+    }
+    .onChange(of: isFocused) { _, focused in
+      if !focused { commitRename() }
+    }
+    .overlay {
+      if !isEditing {
+        Color.clear
+          .contentShape(Rectangle())
           .onTapGesture(count: 2) {
             beginEditing()
           }
