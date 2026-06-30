@@ -33,6 +33,7 @@ struct HabitGridView: View {
 
   private let cellSize: CGFloat = 48
   private let goalColumnWidth: CGFloat = 160
+  private let spawnTomorrowThreshold: CGFloat = 30
 
   /// Width of the "real" content (past + goals + today)
   private var contentWidth: CGFloat {
@@ -80,9 +81,8 @@ struct HabitGridView: View {
         )
         return proxy.contentOffset.x - maxX
       } action: { _, overscroll in
-        if !hasTomorrow && overscroll > 30 {
-          didOverscrollRight = true
-        }
+        didOverscrollRight =
+          !hasTomorrow && overscroll > spawnTomorrowThreshold
       }
       .onScrollPhaseChange { oldPhase, newPhase in
         // Dismiss keyboard when scrolling begins
