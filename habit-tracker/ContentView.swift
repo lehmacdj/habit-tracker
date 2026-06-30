@@ -3,6 +3,7 @@ import SwiftData
 
 struct ContentView: View {
   @Environment(\.modelContext) private var modelContext
+  @Environment(\.scenePhase) private var scenePhase
 
   @Query(
     filter: #Predicate<Goal> { !$0.isDeleted },
@@ -41,8 +42,13 @@ struct ContentView: View {
           selectedDateKey = key
         },
         onDeleteDate: { day in
+          let wasEffectiveToday =
+            day.dateKey == effectiveTodayKey
           withAnimation {
             day.isHidden = true
+          }
+          if wasEffectiveToday {
+            ensureTodayExists()
           }
         },
         onSpawnTomorrow: {
@@ -55,6 +61,11 @@ struct ContentView: View {
     }
     .onAppear {
       ensureTodayExists()
+    }
+    .onChange(of: scenePhase) { _, newPhase in
+      if newPhase == .active {
+        ensureTodayExists()
+      }
     }
   }
 

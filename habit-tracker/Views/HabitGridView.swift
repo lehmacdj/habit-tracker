@@ -126,6 +126,7 @@ struct HabitGridView: View {
         DateHeaderView(
           dateKey: key,
           isSelected: key == selectedDateKey,
+          canDelete: true,
           onTap: { onSelectDate(key) },
           onDelete: {
             if let day = visibleDays.first(
@@ -146,10 +147,12 @@ struct HabitGridView: View {
           height: cellSize
         )
 
-      // Today header
+      // Today header — only deletable if it's a
+      // spawned tomorrow, not the real calendar today
       DateHeaderView(
         dateKey: todayDateKey,
         isSelected: todayDateKey == selectedDateKey,
+        canDelete: todayDateKey != DayBoundary.dateKey(),
         onTap: { onSelectDate(todayDateKey) },
         onDelete: {
           if let day = visibleDays.first(

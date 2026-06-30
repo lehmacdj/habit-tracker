@@ -3,6 +3,7 @@ import SwiftUI
 struct DateHeaderView: View {
   let dateKey: String
   let isSelected: Bool
+  let canDelete: Bool
   let onTap: () -> Void
   let onDelete: () -> Void
 
@@ -30,10 +31,12 @@ struct DateHeaderView: View {
     .contentShape(Rectangle())
     .onTapGesture { onTap() }
     .contextMenu {
-      Button(role: .destructive) {
-        onDelete()
-      } label: {
-        Label("Delete Date", systemImage: "trash")
+      if canDelete {
+        Button(role: .destructive) {
+          onDelete()
+        } label: {
+          Label("Delete Date", systemImage: "trash")
+        }
       }
     }
   }

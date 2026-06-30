@@ -236,23 +236,23 @@ final class habit_trackerUITests: XCTestCase {
   }
 
   /// Finds the currently editing (enabled/focused) goal
-  /// name field. Only one should be active at a time.
+  /// name field, polling until one becomes enabled.
   @MainActor
   private func findEditingGoalField() -> XCUIElement? {
-    // Try textFields first, then textViews
-    for query in [
-      app.textFields, app.textViews
-    ] {
-      let fields = query.matching(
-        identifier: "goalNameField"
-      )
-      // Wait for at least one to appear
-      if !fields.firstMatch
-        .waitForExistence(timeout: 3) { continue }
-      for i in 0..<fields.count {
-        let f = fields.element(boundBy: i)
-        if f.isEnabled { return f }
+    let deadline = Date().addingTimeInterval(5)
+    while Date() < deadline {
+      for query in [
+        app.textFields, app.textViews
+      ] {
+        let fields = query.matching(
+          identifier: "goalNameField"
+        )
+        for i in 0..<fields.count {
+          let f = fields.element(boundBy: i)
+          if f.exists && f.isEnabled { return f }
+        }
       }
+      Thread.sleep(forTimeInterval: 0.1)
     }
     return nil
   }
