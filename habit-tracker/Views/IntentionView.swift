@@ -22,7 +22,9 @@ struct IntentionView: View {
     _intentions = Query(
       filter: #Predicate<Intention> {
         $0.dateKey == key
-      }
+      },
+      sort: \Intention.updatedAt,
+      order: .reverse
     )
   }
 
@@ -73,9 +75,12 @@ struct IntentionView: View {
   }
 
   private func saveIntention(_ newText: String) {
-    if let existing = intention {
-      existing.text = newText
-      existing.updatedAt = Date()
+    if intention != nil {
+      let now = Date()
+      for intention in intentions {
+        intention.text = newText
+        intention.updatedAt = now
+      }
     } else if !newText.isEmpty {
       let newIntention = Intention(
         dateKey: dateKey,

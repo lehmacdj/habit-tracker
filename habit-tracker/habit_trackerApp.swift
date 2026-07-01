@@ -3,6 +3,9 @@ import SwiftData
 
 @main
 struct habit_trackerApp: App {
+  private static let iCloudContainerIdentifier =
+    "iCloud.is.devin.habit-tracker"
+
   var sharedModelContainer: ModelContainer = {
     let schema = Schema([
       Goal.self,
@@ -17,7 +20,9 @@ struct habit_trackerApp: App {
     let config = ModelConfiguration(
       schema: schema,
       isStoredInMemoryOnly: isTesting,
-      cloudKitDatabase: isTesting ? .none : .automatic
+      cloudKitDatabase: isTesting
+        ? .none
+        : .private(iCloudContainerIdentifier)
     )
 
     do {

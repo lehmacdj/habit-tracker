@@ -23,9 +23,10 @@ struct HabitGridView: View {
   }
 
   private var pastDateKeys: [String] {
-    visibleDays
+    let keys = visibleDays
       .map(\.dateKey)
       .filter { $0 < effectiveTodayKey }
+    return Array(Set(keys))
       .sorted()
   }
 

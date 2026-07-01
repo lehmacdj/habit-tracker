@@ -26,7 +26,9 @@ struct CompletionCellView: View {
     _completions = Query(
       filter: #Predicate<Completion> {
         $0.goal?.id == gid && $0.dateKey == dk
-      }
+      },
+      sort: \Completion.updatedAt,
+      order: .reverse
     )
   }
 
@@ -78,8 +80,12 @@ struct CompletionCellView: View {
 
   private func toggle() {
     if let existing = completion {
-      existing.isCompleted.toggle()
-      existing.updatedAt = Date()
+      let newValue = !existing.isCompleted
+      let now = Date()
+      for completion in completions {
+        completion.isCompleted = newValue
+        completion.updatedAt = now
+      }
     } else {
       let c = Completion(dateKey: dateKey, goal: goal)
       modelContext.insert(c)
