@@ -109,7 +109,7 @@ struct HabitGoalWidgetView: View {
   }
 
   private var accessoryInline: some View {
-    Text(shortGoalText)
+    shortGoalText
   }
 
   private var accessoryCircular: some View {
@@ -128,7 +128,7 @@ struct HabitGoalWidgetView: View {
   }
 
   private var accessoryRectangular: some View {
-    Text(shortGoalText)
+    shortGoalText
       .font(.caption)
       .fontWeight(.semibold)
       .lineLimit(4)
@@ -141,11 +141,14 @@ struct HabitGoalWidgetView: View {
       )
   }
 
-  private var shortGoalText: String {
+  private var shortGoalText: Text {
     if let intention = entry.intention {
-      return "Today I will \(intention)"
+      let prompt = Text("Today I will ")
+        .foregroundStyle(.secondary)
+
+      return Text("\(prompt)\(Text(intention))")
     } else {
-      return "Add today's goal"
+      return Text("Add today's goal")
     }
   }
 }
