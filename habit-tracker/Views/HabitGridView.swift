@@ -223,18 +223,18 @@ struct HabitGridView: View {
         startEditing: goal.id == newGoalId,
         onArchive: {
           withAnimation { goal.isDeleted = true }
+        },
+        onDrag: {
+          draggingGoalId = goal.id
+          return NSItemProvider(
+            object: goal.id.uuidString as NSString
+          )
+        },
+        dragPreview: {
+          AnyView(GoalDragPreview(name: goal.name))
         }
       )
       .frame(width: goalColumnWidth)
-      .contentShape(Rectangle())
-      .onDrag {
-        draggingGoalId = goal.id
-        return NSItemProvider(
-          object: goal.id.uuidString as NSString
-        )
-      } preview: {
-        GoalDragPreview(name: goal.name)
-      }
       .simultaneousGesture(
         DragGesture(minimumDistance: 0)
           .onEnded { _ in

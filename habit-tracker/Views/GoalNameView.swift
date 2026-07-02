@@ -9,6 +9,8 @@ struct GoalNameView: View {
   /// When true, immediately enters edit mode (for new goals)
   var startEditing: Bool = false
   var onArchive: (() -> Void)? = nil
+  var onDrag: (() -> NSItemProvider)? = nil
+  var dragPreview: (() -> AnyView)? = nil
 
   var body: some View {
     TextField(
@@ -40,21 +42,7 @@ struct GoalNameView: View {
     }
     .overlay {
       if !isEditing {
-        Color.clear
-          .contentShape(Rectangle())
-          .onTapGesture(count: 2) {
-            beginEditing()
-          }
-          .contextMenu {
-            Button(role: .destructive) {
-              onArchive?()
-            } label: {
-              Label(
-                "Archive Goal",
-                systemImage: "archivebox"
-              )
-            }
-          }
+        interactionOverlay
       }
     }
     .frame(minHeight: 48)
@@ -63,6 +51,39 @@ struct GoalNameView: View {
       if startEditing {
         beginEditing()
       }
+    }
+  }
+
+  @ViewBuilder
+  private var interactionOverlay: some View {
+    let overlay = Color.clear
+      .contentShape(Rectangle())
+      .onTapGesture(count: 2) {
+        beginEditing()
+      }
+      .contextMenu {
+        Button(role: .destructive) {
+          onArchive?()
+        } label: {
+          Label(
+            "Archive Goal",
+            systemImage: "archivebox"
+          )
+        }
+      }
+
+    if let onDrag {
+      overlay.onDrag {
+        onDrag()
+      } preview: {
+        if let dragPreview {
+          dragPreview()
+        } else {
+          EmptyView()
+        }
+      }
+    } else {
+      overlay
     }
   }
 
