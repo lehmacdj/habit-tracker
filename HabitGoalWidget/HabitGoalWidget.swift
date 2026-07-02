@@ -65,7 +65,11 @@ struct HabitGoalWidgetView: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 8) {
-      Text(entry.intention == nil ? "Add today's goal" : "Today")
+      Text(
+        entry.intention == nil
+          ? "Add today's goal"
+          : "Today I will"
+      )
         .font(.caption)
         .foregroundStyle(.secondary)
 
@@ -77,7 +81,7 @@ struct HabitGoalWidgetView: View {
 
       Spacer(minLength: 0)
 
-      Text("\(entry.completedCount) completed today")
+      Text("\(entry.completedCount) habits completed")
         .font(.caption2)
         .foregroundStyle(.secondary)
     }
