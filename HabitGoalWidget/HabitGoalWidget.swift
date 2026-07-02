@@ -109,7 +109,7 @@ struct HabitGoalWidgetView: View {
   }
 
   private var accessoryInline: some View {
-    Text("\(shortGoalText) · \(entry.completedCount) habits completed")
+    Text(shortGoalText)
   }
 
   private var accessoryCircular: some View {
@@ -128,24 +128,17 @@ struct HabitGoalWidgetView: View {
   }
 
   private var accessoryRectangular: some View {
-    VStack(alignment: .leading, spacing: 2) {
-      Text(
-        entry.intention == nil
-          ? "Add today's goal"
-          : "Today I will"
+    Text(shortGoalText)
+      .font(.caption)
+      .fontWeight(.semibold)
+      .lineLimit(4)
+      .minimumScaleFactor(0.6)
+      .multilineTextAlignment(.leading)
+      .frame(
+        maxWidth: .infinity,
+        maxHeight: .infinity,
+        alignment: .topLeading
       )
-      .font(.caption2)
-      .foregroundStyle(.secondary)
-
-      Text(entry.intention ?? "What matters most?")
-        .font(.headline)
-        .lineLimit(1)
-        .minimumScaleFactor(0.75)
-
-      Text("\(entry.completedCount) habits completed")
-        .font(.caption2)
-        .foregroundStyle(.secondary)
-    }
   }
 
   private var shortGoalText: String {
@@ -206,6 +199,19 @@ private enum WidgetSummary {
 #Preview(as: .accessoryRectangular) {
   HabitGoalWidget()
 } timeline: {
+  DailyGoalEntry(
+    date: Date(),
+    intention: "Take initiative to message friends when I want to",
+    completedCount: 3
+  )
+  DailyGoalEntry(
+    date: Date(),
+    intention: """
+      The quick brown fox jumped over the lazy dog \
+      three times today already
+      """,
+    completedCount: 3
+  )
   DailyGoalEntry(
     date: Date(),
     intention: "Write the first draft",
