@@ -218,13 +218,18 @@ struct HabitGridView: View {
         )
       }
 
-      GoalNameView(
-        goal: goal,
-        startEditing: goal.id == newGoalId,
-        onArchive: {
-          withAnimation { goal.isDeleted = true }
-        }
-      )
+      HStack(spacing: 0) {
+        dragHandle(for: goal)
+
+        GoalNameView(
+          goal: goal,
+          startEditing: goal.id == newGoalId,
+          onArchive: {
+            withAnimation { goal.isDeleted = true }
+          }
+        )
+        .frame(width: goalColumnWidth - 28)
+      }
       .frame(width: goalColumnWidth)
 
       CompletionCellView(
@@ -236,14 +241,6 @@ struct HabitGridView: View {
     .frame(minHeight: cellSize)
     .contentShape(Rectangle())
     .opacity(draggingGoalId == goal.id ? 0.45 : 1)
-    .onDrag {
-      draggingGoalId = goal.id
-      return NSItemProvider(
-        object: goal.id.uuidString as NSString
-      )
-    } preview: {
-      GoalDragPreview(name: goal.name)
-    }
     .onDrop(
       of: [UTType.text],
       delegate: GoalDropDelegate(
@@ -253,6 +250,23 @@ struct HabitGridView: View {
         moveGoal: moveGoal
       )
     )
+  }
+
+  private func dragHandle(for goal: Goal) -> some View {
+    Image(systemName: "line.3.horizontal")
+      .font(.caption)
+      .foregroundStyle(.tertiary)
+      .frame(width: 28, height: cellSize)
+      .contentShape(Rectangle())
+      .accessibilityLabel("Reorder \(goal.name)")
+      .onDrag {
+        draggingGoalId = goal.id
+        return NSItemProvider(
+          object: goal.id.uuidString as NSString
+        )
+      } preview: {
+        GoalDragPreview(name: goal.name)
+      }
   }
 
   // MARK: - Add Goal Button
