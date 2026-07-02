@@ -267,6 +267,14 @@ struct HabitGridView: View {
       } preview: {
         GoalDragPreview(name: goal.name)
       }
+      .simultaneousGesture(
+        DragGesture(minimumDistance: 0)
+          .onEnded { _ in
+            if draggingGoalId == goal.id {
+              draggingGoalId = nil
+            }
+          }
+      )
   }
 
   // MARK: - Add Goal Button
