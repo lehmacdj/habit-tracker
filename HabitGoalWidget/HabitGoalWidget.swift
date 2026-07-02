@@ -61,9 +61,30 @@ struct DailyGoalProvider: TimelineProvider {
 }
 
 struct HabitGoalWidgetView: View {
+  @Environment(\.widgetFamily) private var widgetFamily
+
   let entry: DailyGoalEntry
 
   var body: some View {
+    Group {
+      switch widgetFamily {
+      case .accessoryInline:
+        accessoryInline
+      case .accessoryCircular:
+        accessoryCircular
+      case .accessoryRectangular:
+        accessoryRectangular
+      default:
+        homeScreenWidget
+      }
+    }
+    .containerBackground(for: .widget) {
+      Color(.systemBackground)
+    }
+    .widgetURL(URL(string: "habit-tracker://today"))
+  }
+
+  private var homeScreenWidget: some View {
     VStack(alignment: .leading, spacing: 8) {
       Text(
         entry.intention == nil
@@ -85,10 +106,54 @@ struct HabitGoalWidgetView: View {
         .font(.caption2)
         .foregroundStyle(.secondary)
     }
-    .containerBackground(for: .widget) {
-      Color(.systemBackground)
+  }
+
+  private var accessoryInline: some View {
+    Text("\(shortGoalText) · \(entry.completedCount) habits completed")
+  }
+
+  private var accessoryCircular: some View {
+    VStack(spacing: 2) {
+      Image(systemName: entry.intention == nil ? "plus" : "checkmark")
+        .font(.caption2)
+
+      Text("\(entry.completedCount)")
+        .font(.headline)
+        .fontWeight(.semibold)
+
+      Text("habits")
+        .font(.system(size: 8))
     }
-    .widgetURL(URL(string: "habit-tracker://today"))
+    .widgetAccentable()
+  }
+
+  private var accessoryRectangular: some View {
+    VStack(alignment: .leading, spacing: 2) {
+      Text(
+        entry.intention == nil
+          ? "Add today's goal"
+          : "Today I will"
+      )
+      .font(.caption2)
+      .foregroundStyle(.secondary)
+
+      Text(entry.intention ?? "What matters most?")
+        .font(.headline)
+        .lineLimit(1)
+        .minimumScaleFactor(0.75)
+
+      Text("\(entry.completedCount) habits completed")
+        .font(.caption2)
+        .foregroundStyle(.secondary)
+    }
+  }
+
+  private var shortGoalText: String {
+    if let intention = entry.intention {
+      return "Today I will \(intention)"
+    } else {
+      return "Add today's goal"
+    }
   }
 }
 
@@ -105,7 +170,13 @@ struct HabitGoalWidget: Widget {
     }
     .configurationDisplayName("Daily Goal")
     .description("See today's goal and what you've completed.")
-    .supportedFamilies([.systemSmall, .systemMedium])
+    .supportedFamilies([
+      .systemSmall,
+      .systemMedium,
+      .accessoryInline,
+      .accessoryCircular,
+      .accessoryRectangular
+    ])
   }
 }
 
@@ -129,5 +200,40 @@ private enum WidgetSummary {
     date: Date(),
     intention: nil,
     completedCount: 0
+  )
+}
+
+#Preview(as: .accessoryRectangular) {
+  HabitGoalWidget()
+} timeline: {
+  DailyGoalEntry(
+    date: Date(),
+    intention: "Write the first draft",
+    completedCount: 3
+  )
+  DailyGoalEntry(
+    date: Date(),
+    intention: nil,
+    completedCount: 0
+  )
+}
+
+#Preview(as: .accessoryCircular) {
+  HabitGoalWidget()
+} timeline: {
+  DailyGoalEntry(
+    date: Date(),
+    intention: "Write the first draft",
+    completedCount: 3
+  )
+}
+
+#Preview(as: .accessoryInline) {
+  HabitGoalWidget()
+} timeline: {
+  DailyGoalEntry(
+    date: Date(),
+    intention: "Write the first draft",
+    completedCount: 3
   )
 }
