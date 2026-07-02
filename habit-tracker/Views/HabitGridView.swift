@@ -18,6 +18,7 @@ struct HabitGridView: View {
   @State private var isOverscrollingRight = false
   @State private var spawnTomorrowProgress = 0.0
   @State private var isSpawnTomorrowReady = false
+  @State private var isInteractingWithGrid = false
   @State private var spawnTomorrowTask: Task<Void, Never>? = nil
 
   private var hasTomorrow: Bool {
@@ -40,6 +41,7 @@ struct HabitGridView: View {
   private let cellSize: CGFloat = 48
   private let goalColumnWidth: CGFloat = 160
   private let spawnTomorrowThreshold: CGFloat = 30
+  private let spawnTomorrowCancelThreshold: CGFloat = 12
   private let spawnTomorrowHoldDuration: TimeInterval = 1
 
   /// Width of the "real" content (past + goals + today)
@@ -88,14 +90,15 @@ struct HabitGridView: View {
         )
         return proxy.contentOffset.x - maxX
       } action: { _, overscroll in
-        setOverscrollingRight(
-          !hasTomorrow && overscroll > spawnTomorrowThreshold
-        )
+        updateSpawnTomorrowOverscroll(overscroll)
       }
       .onScrollPhaseChange { oldPhase, newPhase in
         // Dismiss keyboard when scrolling begins
         if newPhase == .interacting {
+          isInteractingWithGrid = true
           onGridTapped?()
+        } else {
+          isInteractingWithGrid = false
         }
         if oldPhase == .interacting
           && isSpawnTomorrowReady {
@@ -319,22 +322,33 @@ struct HabitGridView: View {
     }
   }
 
-  private func setOverscrollingRight(_ isOverscrolling: Bool) {
-    guard isOverscrolling != isOverscrollingRight else { return }
-    isOverscrollingRight = isOverscrolling
-    if isOverscrolling {
-      startSpawnTomorrowProgress()
+  private func updateSpawnTomorrowOverscroll(
+    _ overscroll: CGFloat
+  ) {
+    guard !hasTomorrow else {
+      resetSpawnTomorrowProgress()
+      return
+    }
+
+    if overscroll > spawnTomorrowThreshold {
+      isOverscrollingRight = true
+      if spawnTomorrowTask == nil && !isSpawnTomorrowReady {
+        startSpawnTomorrowProgress()
+      }
+    } else if isSpawnTomorrowReady
+      && isInteractingWithGrid
+      && overscroll < spawnTomorrowCancelThreshold {
+      resetSpawnTomorrowProgress()
     } else if isSpawnTomorrowReady {
-      isOverscrollingRight = false
-      spawnTomorrowTask?.cancel()
-      spawnTomorrowTask = nil
+      isOverscrollingRight =
+        overscroll > spawnTomorrowCancelThreshold
     } else {
       resetSpawnTomorrowProgress()
     }
   }
 
   private func startSpawnTomorrowProgress() {
-    spawnTomorrowTask?.cancel()
+    guard spawnTomorrowTask == nil else { return }
     spawnTomorrowProgress = 0
     isSpawnTomorrowReady = false
 
