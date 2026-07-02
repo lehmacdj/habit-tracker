@@ -17,6 +17,9 @@ struct ContentView: View {
   )
   private var visibleDays: [Day]
 
+  @Query(sort: \Intention.updatedAt, order: .reverse)
+  private var intentions: [Intention]
+
   @State private var effectiveTodayKey: String =
     DayBoundary.dateKey()
   @State private var selectedDateKey: String =
@@ -61,12 +64,42 @@ struct ContentView: View {
     }
     .onAppear {
       ensureTodayExists()
+      syncWidgetSummary()
     }
     .onChange(of: scenePhase) { _, newPhase in
       if newPhase == .active {
         ensureTodayExists()
+        syncWidgetSummary()
       }
     }
+    .onChange(of: widgetSummaryFingerprint) {
+      syncWidgetSummary()
+    }
+  }
+
+  private var todayIntentionText: String? {
+    let trimmed = intentions.first {
+      $0.dateKey == effectiveTodayKey
+    }?.text.trimmingCharacters(
+      in: .whitespacesAndNewlines
+    ) ?? ""
+    return trimmed.isEmpty ? nil : trimmed
+  }
+
+  private var completedGoalsTodayCount: Int {
+    goals.filter { goal in
+      goal.completions?.contains {
+        $0.dateKey == effectiveTodayKey && $0.isCompleted
+      } ?? false
+    }.count
+  }
+
+  private var widgetSummaryFingerprint: String {
+    [
+      effectiveTodayKey,
+      todayIntentionText ?? "",
+      String(completedGoalsTodayCount)
+    ].joined(separator: "|")
   }
 
   /// Ensures a Day record exists for the current logical date.
@@ -105,6 +138,13 @@ struct ContentView: View {
       effectiveTodayKey = tomorrowKey
       selectedDateKey = tomorrowKey
     }
+  }
+
+  private func syncWidgetSummary() {
+    HabitWidgetSummaryStore.save(
+      todayIntention: todayIntentionText,
+      completedCount: completedGoalsTodayCount
+    )
   }
 }
 

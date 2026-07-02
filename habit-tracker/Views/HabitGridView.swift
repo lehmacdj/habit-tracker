@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import UniformTypeIdentifiers
 
 struct HabitGridView: View {
   @Environment(\.modelContext) private var modelContext
@@ -13,7 +14,11 @@ struct HabitGridView: View {
   var onGridTapped: (() -> Void)? = nil
 
   @State private var newGoalId: UUID? = nil
-  @State private var didOverscrollRight = false
+  @State private var draggingGoalId: UUID? = nil
+  @State private var isOverscrollingRight = false
+  @State private var spawnTomorrowProgress = 0.0
+  @State private var isSpawnTomorrowReady = false
+  @State private var spawnTomorrowTask: Task<Void, Never>? = nil
 
   private var hasTomorrow: Bool {
     let tomorrow = DayBoundary.tomorrowKey(
@@ -35,6 +40,7 @@ struct HabitGridView: View {
   private let cellSize: CGFloat = 48
   private let goalColumnWidth: CGFloat = 160
   private let spawnTomorrowThreshold: CGFloat = 30
+  private let spawnTomorrowHoldDuration: TimeInterval = 1
 
   /// Width of the "real" content (past + goals + today)
   private var contentWidth: CGFloat {
@@ -82,8 +88,9 @@ struct HabitGridView: View {
         )
         return proxy.contentOffset.x - maxX
       } action: { _, overscroll in
-        didOverscrollRight =
+        setOverscrollingRight(
           !hasTomorrow && overscroll > spawnTomorrowThreshold
+        )
       }
       .onScrollPhaseChange { oldPhase, newPhase in
         // Dismiss keyboard when scrolling begins
@@ -91,21 +98,39 @@ struct HabitGridView: View {
           onGridTapped?()
         }
         if oldPhase == .interacting
-          && didOverscrollRight {
-          didOverscrollRight = false
+          && isSpawnTomorrowReady {
+          resetSpawnTomorrowProgress()
           onSpawnTomorrow()
+        } else if oldPhase == .interacting {
+          resetSpawnTomorrowProgress()
         }
       }
       .overlay(alignment: .trailing) {
-        if didOverscrollRight && !hasTomorrow {
-          VStack(spacing: 4) {
+        if isOverscrollingRight && !hasTomorrow {
+          VStack(spacing: 6) {
             Image(systemName: "arrow.left")
-            Text("Tomorrow")
+            Text(
+              isSpawnTomorrowReady
+                ? "Release"
+                : "Hold for tomorrow"
+            )
               .font(.caption2)
+            ProgressView(value: spawnTomorrowProgress)
+              .progressViewStyle(.linear)
+              .frame(width: 72)
           }
           .foregroundStyle(.secondary)
           .padding(.trailing, 8)
         }
+      }
+      #if os(iOS)
+      .sensoryFeedback(
+        .success,
+        trigger: isSpawnTomorrowReady
+      )
+      #endif
+      .onDisappear {
+        spawnTomorrowTask?.cancel()
       }
     }
   }
@@ -206,6 +231,25 @@ struct HabitGridView: View {
       )
     }
     .frame(minHeight: cellSize)
+    .contentShape(Rectangle())
+    .opacity(draggingGoalId == goal.id ? 0.45 : 1)
+    .onDrag {
+      draggingGoalId = goal.id
+      return NSItemProvider(
+        object: goal.id.uuidString as NSString
+      )
+    } preview: {
+      GoalDragPreview(name: goal.name)
+    }
+    .onDrop(
+      of: [UTType.text],
+      delegate: GoalDropDelegate(
+        goal: goal,
+        goals: goals,
+        draggingGoalId: $draggingGoalId,
+        moveGoal: moveGoal
+      )
+    )
   }
 
   // MARK: - Add Goal Button
@@ -273,5 +317,111 @@ struct HabitGridView: View {
     DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
       if newGoalId == goal.id { newGoalId = nil }
     }
+  }
+
+  private func setOverscrollingRight(_ isOverscrolling: Bool) {
+    guard isOverscrolling != isOverscrollingRight else { return }
+    isOverscrollingRight = isOverscrolling
+    if isOverscrolling {
+      startSpawnTomorrowProgress()
+    } else if isSpawnTomorrowReady {
+      isOverscrollingRight = false
+      spawnTomorrowTask?.cancel()
+      spawnTomorrowTask = nil
+    } else {
+      resetSpawnTomorrowProgress()
+    }
+  }
+
+  private func startSpawnTomorrowProgress() {
+    spawnTomorrowTask?.cancel()
+    spawnTomorrowProgress = 0
+    isSpawnTomorrowReady = false
+
+    spawnTomorrowTask = Task {
+      let start = Date()
+      while !Task.isCancelled {
+        let elapsed = Date().timeIntervalSince(start)
+        let progress = min(
+          elapsed / spawnTomorrowHoldDuration,
+          1
+        )
+        await MainActor.run {
+          spawnTomorrowProgress = progress
+          if progress >= 1 {
+            isSpawnTomorrowReady = true
+          }
+        }
+        if progress >= 1 { break }
+        try? await Task.sleep(for: .milliseconds(16))
+      }
+    }
+  }
+
+  private func resetSpawnTomorrowProgress() {
+    spawnTomorrowTask?.cancel()
+    spawnTomorrowTask = nil
+    isOverscrollingRight = false
+    spawnTomorrowProgress = 0
+    isSpawnTomorrowReady = false
+  }
+
+  private func moveGoal(
+    from sourceId: UUID,
+    to destinationId: UUID
+  ) {
+    guard sourceId != destinationId,
+      let sourceIndex = goals.firstIndex(
+        where: { $0.id == sourceId }
+      ),
+      let destinationIndex = goals.firstIndex(
+        where: { $0.id == destinationId }
+      )
+    else { return }
+
+    var reordered = goals
+    let movedGoal = reordered.remove(at: sourceIndex)
+    reordered.insert(movedGoal, at: destinationIndex)
+
+    for (index, goal) in reordered.enumerated() {
+      goal.sortOrder = index
+    }
+  }
+}
+
+private struct GoalDragPreview: View {
+  let name: String
+
+  var body: some View {
+    Text(name.isEmpty ? "untitled" : name)
+      .font(.body)
+      .padding(.horizontal, 12)
+      .padding(.vertical, 8)
+      .background(Color(.systemBackground))
+      .clipShape(RoundedRectangle(cornerRadius: 6))
+      .shadow(radius: 4)
+  }
+}
+
+private struct GoalDropDelegate: DropDelegate {
+  let goal: Goal
+  let goals: [Goal]
+  @Binding var draggingGoalId: UUID?
+  let moveGoal: (UUID, UUID) -> Void
+
+  func dropEntered(info: DropInfo) {
+    guard let draggingGoalId else { return }
+    withAnimation {
+      moveGoal(draggingGoalId, goal.id)
+    }
+  }
+
+  func performDrop(info: DropInfo) -> Bool {
+    draggingGoalId = nil
+    return true
+  }
+
+  func dropUpdated(info: DropInfo) -> DropProposal? {
+    DropProposal(operation: .move)
   }
 }
