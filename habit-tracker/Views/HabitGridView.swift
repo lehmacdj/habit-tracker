@@ -1,6 +1,5 @@
 import SwiftUI
 import SwiftData
-import UniformTypeIdentifiers
 
 struct HabitGridView: View {
   @Environment(\.modelContext) private var modelContext
@@ -14,7 +13,6 @@ struct HabitGridView: View {
   var onGridTapped: (() -> Void)? = nil
 
   @State private var newGoalId: UUID? = nil
-  @State private var draggingGoalId: UUID? = nil
   @State private var isOverscrollingRight = false
   @State private var spawnTomorrowProgress = 0.0
   @State private var isSpawnTomorrowReady = false
@@ -224,25 +222,12 @@ struct HabitGridView: View {
         onArchive: {
           withAnimation { goal.isDeleted = true }
         },
-        onDrag: {
-          draggingGoalId = goal.id
-          return NSItemProvider(
-            object: goal.id.uuidString as NSString
-          )
-        },
+        dragValue: goal.id.uuidString,
         dragPreview: {
           AnyView(GoalDragPreview(name: goal.name))
         }
       )
       .frame(width: goalColumnWidth)
-      .simultaneousGesture(
-        DragGesture(minimumDistance: 0)
-          .onEnded { _ in
-            if draggingGoalId == goal.id {
-              draggingGoalId = nil
-            }
-          }
-      )
 
       CompletionCellView(
         goal: goal,
@@ -252,16 +237,17 @@ struct HabitGridView: View {
     }
     .frame(minHeight: cellSize)
     .contentShape(Rectangle())
-    .opacity(draggingGoalId == goal.id ? 0.45 : 1)
-    .onDrop(
-      of: [UTType.text],
-      delegate: GoalDropDelegate(
-        goal: goal,
-        goals: goals,
-        draggingGoalId: $draggingGoalId,
-        moveGoal: moveGoal
-      )
-    )
+    .dropDestination(for: String.self) { items, _ in
+      guard let sourceId = items
+        .compactMap(UUID.init(uuidString:))
+        .first
+      else { return false }
+
+      withAnimation {
+        moveGoal(from: sourceId, to: goal.id)
+      }
+      return true
+    }
   }
 
   // MARK: - Add Goal Button
@@ -423,28 +409,5 @@ private struct GoalDragPreview: View {
       .background(Color(.systemBackground))
       .clipShape(RoundedRectangle(cornerRadius: 6))
       .shadow(radius: 4)
-  }
-}
-
-private struct GoalDropDelegate: DropDelegate {
-  let goal: Goal
-  let goals: [Goal]
-  @Binding var draggingGoalId: UUID?
-  let moveGoal: (UUID, UUID) -> Void
-
-  func dropEntered(info: DropInfo) {
-    guard let draggingGoalId else { return }
-    withAnimation {
-      moveGoal(draggingGoalId, goal.id)
-    }
-  }
-
-  func performDrop(info: DropInfo) -> Bool {
-    draggingGoalId = nil
-    return true
-  }
-
-  func dropUpdated(info: DropInfo) -> DropProposal? {
-    DropProposal(operation: .move)
   }
 }

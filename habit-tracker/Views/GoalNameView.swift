@@ -9,7 +9,7 @@ struct GoalNameView: View {
   /// When true, immediately enters edit mode (for new goals)
   var startEditing: Bool = false
   var onArchive: (() -> Void)? = nil
-  var onDrag: (() -> NSItemProvider)? = nil
+  var dragValue: String? = nil
   var dragPreview: (() -> AnyView)? = nil
 
   var body: some View {
@@ -56,7 +56,7 @@ struct GoalNameView: View {
 
   @ViewBuilder
   private var interactionOverlay: some View {
-    let overlay = Color.clear
+    let overlay = Color.black.opacity(0.001)
       .contentShape(Rectangle())
       .onTapGesture(count: 2) {
         beginEditing()
@@ -72,14 +72,10 @@ struct GoalNameView: View {
         }
       }
 
-    if let onDrag {
-      overlay.onDrag {
-        onDrag()
-      } preview: {
+    if let dragValue {
+      overlay.draggable(dragValue) {
         if let dragPreview {
           dragPreview()
-        } else {
-          EmptyView()
         }
       }
     } else {
