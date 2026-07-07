@@ -1,10 +1,21 @@
 import SwiftUI
 import SwiftData
+#if os(iOS)
+import UIKit
+#endif
 
 @main
 struct habit_trackerApp: App {
   private static let iCloudContainerIdentifier =
     "iCloud.is.devin.habit-tracker"
+
+  init() {
+    #if os(iOS)
+    if Self.isTesting {
+      UIView.setAnimationsEnabled(false)
+    }
+    #endif
+  }
 
   var sharedModelContainer: ModelContainer = {
     let schema = Schema([
@@ -14,13 +25,10 @@ struct habit_trackerApp: App {
       Day.self,
     ])
 
-    let isTesting = ProcessInfo.processInfo.arguments
-      .contains("--uitesting")
-
     let config = ModelConfiguration(
       schema: schema,
-      isStoredInMemoryOnly: isTesting,
-      cloudKitDatabase: isTesting
+      isStoredInMemoryOnly: Self.isTesting,
+      cloudKitDatabase: Self.isTesting
         ? .none
         : .private(iCloudContainerIdentifier)
     )
@@ -36,6 +44,13 @@ struct habit_trackerApp: App {
       )
     }
   }()
+
+  private static var isTesting: Bool {
+    let processInfo = ProcessInfo.processInfo
+    return processInfo.arguments.contains("--uitesting")
+      || processInfo.environment["XCTestBundlePath"] != nil
+      || processInfo.environment["XCTestConfigurationFilePath"] != nil
+  }
 
   var body: some Scene {
     WindowGroup {
