@@ -17,6 +17,9 @@ struct ContentView: View {
   )
   private var visibleDays: [Day]
 
+  @Query(sort: \Day.dateKey)
+  private var allDays: [Day]
+
   @Query(sort: \Intention.updatedAt, order: .reverse)
   private var intentions: [Intention]
 
@@ -56,6 +59,9 @@ struct ContentView: View {
         },
         onSpawnTomorrow: {
           spawnTomorrow()
+        },
+        onInsertDate: { key in
+          insertDate(key)
         },
         onGridTapped: {
           isIntentionFocused = false
@@ -102,19 +108,16 @@ struct ContentView: View {
     ].joined(separator: "|")
   }
 
-  /// Ensures a Day record exists for the current logical date.
+  /// Ensures Day records exist for today and the previous day.
   private func ensureTodayExists() {
     let todayKey = DayBoundary.dateKey()
     effectiveTodayKey = todayKey
     selectedDateKey = todayKey
 
-    let existing = visibleDays.contains {
-      $0.dateKey == todayKey
-    }
-    if !existing {
-      let day = Day(dateKey: todayKey)
-      modelContext.insert(day)
-    }
+    ensureDayVisible(todayKey)
+    ensureDayVisible(
+      DayBoundary.yesterdayKey(from: todayKey)
+    )
   }
 
   /// Spawns tomorrow's date. Tomorrow becomes the new
@@ -126,17 +129,37 @@ struct ContentView: View {
       from: calendarToday
     )
 
-    let alreadyExists = visibleDays.contains {
-      $0.dateKey == tomorrowKey
-    }
-    if !alreadyExists {
-      let day = Day(dateKey: tomorrowKey)
-      modelContext.insert(day)
-    }
+    ensureDayVisible(tomorrowKey)
 
     withAnimation {
       effectiveTodayKey = tomorrowKey
       selectedDateKey = tomorrowKey
+    }
+  }
+
+  private func insertDate(_ dateKey: String) {
+    withAnimation {
+      ensureDayVisible(dateKey)
+      if dateKey > effectiveTodayKey {
+        effectiveTodayKey = dateKey
+      }
+      selectedDateKey = dateKey
+    }
+  }
+
+  private func ensureDayVisible(_ dateKey: String) {
+    if allDays.contains(
+      where: { $0.dateKey == dateKey && !$0.isHidden }
+    ) {
+      return
+    }
+
+    if let hiddenDay = allDays.first(
+      where: { $0.dateKey == dateKey }
+    ) {
+      hiddenDay.isHidden = false
+    } else {
+      modelContext.insert(Day(dateKey: dateKey))
     }
   }
 

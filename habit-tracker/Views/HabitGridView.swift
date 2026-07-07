@@ -10,6 +10,7 @@ struct HabitGridView: View {
   let onSelectDate: (String) -> Void
   let onDeleteDate: (Day) -> Void
   let onSpawnTomorrow: () -> Void
+  let onInsertDate: (String) -> Void
   var onGridTapped: (() -> Void)? = nil
 
   @State private var newGoalId: UUID? = nil
@@ -35,6 +36,10 @@ struct HabitGridView: View {
   }
 
   private var todayDateKey: String { effectiveTodayKey }
+
+  private var visibleDateKeySet: Set<String> {
+    Set(visibleDays.map(\.dateKey))
+  }
 
   private let cellSize: CGFloat = 48
   private let goalColumnWidth: CGFloat = 160
@@ -150,10 +155,15 @@ struct HabitGridView: View {
 
       // Past date headers
       ForEach(pastDateKeys, id: \.self) { key in
+        let previousKey = DayBoundary.yesterdayKey(from: key)
+        let nextKey = DayBoundary.tomorrowKey(from: key)
         DateHeaderView(
           dateKey: key,
           isSelected: key == selectedDateKey,
           canDelete: true,
+          canInsertPrevious: !visibleDateKeySet
+            .contains(previousKey),
+          canInsertNext: !visibleDateKeySet.contains(nextKey),
           onTap: { onSelectDate(key) },
           onDelete: {
             if let day = visibleDays.first(
@@ -161,6 +171,12 @@ struct HabitGridView: View {
             ) {
               onDeleteDate(day)
             }
+          },
+          onInsertPrevious: {
+            onInsertDate(previousKey)
+          },
+          onInsertNext: {
+            onInsertDate(nextKey)
           }
         )
       }
@@ -176,10 +192,19 @@ struct HabitGridView: View {
 
       // Today header — only deletable if it's a
       // spawned tomorrow, not the real calendar today
+      let previousKey = DayBoundary.yesterdayKey(
+        from: todayDateKey
+      )
+      let nextKey = DayBoundary.tomorrowKey(
+        from: todayDateKey
+      )
       DateHeaderView(
         dateKey: todayDateKey,
         isSelected: todayDateKey == selectedDateKey,
         canDelete: todayDateKey != DayBoundary.dateKey(),
+        canInsertPrevious: !visibleDateKeySet
+          .contains(previousKey),
+        canInsertNext: !visibleDateKeySet.contains(nextKey),
         onTap: { onSelectDate(todayDateKey) },
         onDelete: {
           if let day = visibleDays.first(
@@ -187,6 +212,12 @@ struct HabitGridView: View {
           ) {
             onDeleteDate(day)
           }
+        },
+        onInsertPrevious: {
+          onInsertDate(previousKey)
+        },
+        onInsertNext: {
+          onInsertDate(nextKey)
         }
       )
     }

@@ -4,8 +4,12 @@ struct DateHeaderView: View {
   let dateKey: String
   let isSelected: Bool
   let canDelete: Bool
+  let canInsertPrevious: Bool
+  let canInsertNext: Bool
   let onTap: () -> Void
   let onDelete: () -> Void
+  let onInsertPrevious: () -> Void
+  let onInsertNext: () -> Void
 
   var body: some View {
     let parts = DayBoundary.displayString(for: dateKey)
@@ -31,6 +35,28 @@ struct DateHeaderView: View {
     .contentShape(Rectangle())
     .onTapGesture { onTap() }
     .contextMenu {
+      if canInsertPrevious {
+        Button {
+          onInsertPrevious()
+        } label: {
+          Label(
+            "Insert Previous Day",
+            systemImage: "calendar.badge.plus"
+          )
+        }
+      }
+
+      if canInsertNext {
+        Button {
+          onInsertNext()
+        } label: {
+          Label(
+            "Insert Next Day",
+            systemImage: "calendar.badge.plus"
+          )
+        }
+      }
+
       if canDelete {
         Button(role: .destructive) {
           onDelete()
