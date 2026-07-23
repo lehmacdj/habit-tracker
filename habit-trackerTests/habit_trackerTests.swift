@@ -64,6 +64,40 @@ struct DayBoundaryTests {
     let back = DayBoundary.yesterdayKey(from: next)
     #expect(back == key)
   }
+
+  @Test func effectiveTodayRestoresVisibleFutureDay() {
+    let effective = DayBoundary.effectiveTodayKey(
+      calendarTodayKey: "2026-03-17",
+      visibleDateKeys: [
+        "2026-03-16",
+        "2026-03-17",
+        "2026-03-18",
+      ]
+    )
+    #expect(effective == "2026-03-18")
+  }
+
+  @Test func effectiveTodayIgnoresPastDays() {
+    let effective = DayBoundary.effectiveTodayKey(
+      calendarTodayKey: "2026-03-17",
+      visibleDateKeys: [
+        "2026-03-15",
+        "2026-03-16",
+      ]
+    )
+    #expect(effective == "2026-03-17")
+  }
+
+  @Test func effectiveTodayUsesLatestVisibleFutureDay() {
+    let effective = DayBoundary.effectiveTodayKey(
+      calendarTodayKey: "2026-03-17",
+      visibleDateKeys: [
+        "2026-03-19",
+        "2026-03-18",
+      ]
+    )
+    #expect(effective == "2026-03-19")
+  }
 }
 
 struct GoalModelTests {

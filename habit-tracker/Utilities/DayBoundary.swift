@@ -43,6 +43,17 @@ enum DayBoundary {
     return formatter.string(from: yesterday)
   }
 
+  /// Returns the latest visible date on or after the calendar
+  /// day, falling back to the calendar day itself.
+  static func effectiveTodayKey(
+    calendarTodayKey: String,
+    visibleDateKeys: [String]
+  ) -> String {
+    visibleDateKeys
+      .filter { $0 >= calendarTodayKey }
+      .max() ?? calendarTodayKey
+  }
+
   /// Parses a dateKey back to a Date (at noon) for display.
   static func displayDate(for key: String) -> Date? {
     formatter.date(from: key)
