@@ -171,6 +171,7 @@ struct ContentView: View {
 
   private func syncWidgetSummary() {
     HabitWidgetSummaryStore.save(
+      dateKey: effectiveTodayKey,
       todayIntention: todayIntentionText,
       completedCount: completedGoalsTodayCount
     )

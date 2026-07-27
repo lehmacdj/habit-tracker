@@ -27,35 +27,47 @@ struct DailyGoalProvider: TimelineProvider {
     in context: Context,
     completion: @escaping (Timeline<DailyGoalEntry>) -> Void
   ) {
-    let nextRefresh = Calendar.current.date(
-      byAdding: .minute,
-      value: 15,
-      to: Date()
-    ) ?? Date().addingTimeInterval(15 * 60)
+    let now = Date()
+    let dayBoundaries = WidgetDayBoundary.upcomingBoundaries(
+      after: now,
+      count: 7
+    )
+    let entries = [loadEntry(for: now)]
+      + dayBoundaries.map { loadEntry(for: $0) }
 
     completion(Timeline(
-      entries: [loadEntry()],
-      policy: .after(nextRefresh)
+      entries: entries,
+      policy: .atEnd
     ))
   }
 
-  private func loadEntry() -> DailyGoalEntry {
+  private func loadEntry(
+    for date: Date = Date()
+  ) -> DailyGoalEntry {
     let defaults = UserDefaults(
       suiteName: WidgetSummary.appGroupIdentifier
     ) ?? .standard
-    let rawIntention = defaults.string(
-      forKey: WidgetSummary.intentionKey
-    )?.trimmingCharacters(in: .whitespacesAndNewlines)
-    let intention = rawIntention?.isEmpty == false
-      ? rawIntention
+    let summaryDateKey = defaults.string(
+      forKey: WidgetSummary.dateKey
+    )
+    let requestedDateKey = WidgetDayBoundary.dateKey(for: date)
+    let isCurrentOrFuture =
+      summaryDateKey.map { $0 >= requestedDateKey } ?? false
+    let rawIntention = isCurrentOrFuture
+      ? defaults.string(
+        forKey: WidgetSummary.intentionKey
+      )?.trimmingCharacters(in: .whitespacesAndNewlines)
       : nil
+    let intention = rawIntention?.isEmpty == false ? rawIntention : nil
 
     return DailyGoalEntry(
-      date: Date(),
+      date: date,
       intention: intention,
-      completedCount: defaults.integer(
-        forKey: WidgetSummary.completedCountKey
-      )
+      completedCount: isCurrentOrFuture
+        ? defaults.integer(
+          forKey: WidgetSummary.completedCountKey
+        )
+        : 0
     )
   }
 }
@@ -182,6 +194,63 @@ private enum WidgetSummary {
   static let kind = "DailyGoalWidget"
   static let intentionKey = "todayIntention"
   static let completedCountKey = "completedCount"
+  static let dateKey = "summaryDateKey"
+}
+
+private enum WidgetDayBoundary {
+  private static let boundaryHour = 4
+
+  static func dateKey(
+    for date: Date,
+    calendar: Calendar = .current
+  ) -> String {
+    let adjusted = calendar.date(
+      byAdding: .hour,
+      value: -boundaryHour,
+      to: date
+    ) ?? date
+    let components = calendar.dateComponents(
+      [.year, .month, .day],
+      from: adjusted
+    )
+
+    return String(
+      format: "%04d-%02d-%02d",
+      components.year ?? 0,
+      components.month ?? 0,
+      components.day ?? 0
+    )
+  }
+
+  static func upcomingBoundaries(
+    after date: Date,
+    count: Int,
+    calendar: Calendar = .current
+  ) -> [Date] {
+    guard count > 0 else { return [] }
+
+    let startOfDay = calendar.startOfDay(for: date)
+    let todayBoundary = calendar.date(
+      byAdding: .hour,
+      value: boundaryHour,
+      to: startOfDay
+    ) ?? date.addingTimeInterval(4 * 60 * 60)
+    let firstBoundary = date < todayBoundary
+      ? todayBoundary
+      : calendar.date(
+        byAdding: .day,
+        value: 1,
+        to: todayBoundary
+      ) ?? todayBoundary.addingTimeInterval(24 * 60 * 60)
+
+    return (0..<count).compactMap { offset in
+      calendar.date(
+        byAdding: .day,
+        value: offset,
+        to: firstBoundary
+      )
+    }
+  }
 }
 
 #Preview(as: .systemSmall) {

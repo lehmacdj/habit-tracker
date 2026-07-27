@@ -8,9 +8,11 @@ enum HabitWidgetSummaryStore {
 
   private static let intentionKey = "todayIntention"
   private static let completedCountKey = "completedCount"
+  private static let dateKey = "summaryDateKey"
   private static let updatedAtKey = "updatedAt"
 
   static func save(
+    dateKey: String,
     todayIntention: String?,
     completedCount: Int
   ) {
@@ -24,6 +26,10 @@ enum HabitWidgetSummaryStore {
     defaults.set(
       completedCount,
       forKey: completedCountKey
+    )
+    defaults.set(
+      dateKey,
+      forKey: Self.dateKey
     )
     defaults.set(
       Date(),
