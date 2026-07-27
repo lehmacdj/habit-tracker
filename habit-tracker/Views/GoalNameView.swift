@@ -20,6 +20,7 @@ struct GoalNameView: View {
     )
     .font(.body)
     .lineLimit(1...2)
+    .minimumScaleFactor(0.5)
     .multilineTextAlignment(.center)
     .focused($isFocused)
     .disabled(!isEditing)
