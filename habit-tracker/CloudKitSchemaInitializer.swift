@@ -12,7 +12,6 @@ enum CloudKitSchemaInitializer {
 
   static func initializeIfNeeded(
     modelTypes: [any PersistentModel.Type],
-    configuration: ModelConfiguration,
     containerIdentifier: String
   ) {
     guard ProcessInfo.processInfo.environment[
@@ -52,8 +51,13 @@ enum CloudKitSchemaInitializer {
     let initialized: Bool
     do {
       initialized = try autoreleasepool {
+        let storeURL = FileManager.default
+          .temporaryDirectory
+          .appending(
+            path: "CloudKitSchema-\(UUID().uuidString).store"
+          )
         let description = NSPersistentStoreDescription(
-          url: configuration.url
+          url: storeURL
         )
         description.cloudKitContainerOptions =
           NSPersistentCloudKitContainerOptions(
@@ -92,11 +96,23 @@ enum CloudKitSchemaInitializer {
           try container
             .persistentStoreCoordinator
             .remove(store)
+          try container
+            .persistentStoreCoordinator
+            .destroyPersistentStore(
+              at: storeURL,
+              type: .sqlite
+            )
           return true
         } catch {
           try? container
             .persistentStoreCoordinator
             .remove(store)
+          try? container
+            .persistentStoreCoordinator
+            .destroyPersistentStore(
+              at: storeURL,
+              type: .sqlite
+            )
           throw error
         }
       }

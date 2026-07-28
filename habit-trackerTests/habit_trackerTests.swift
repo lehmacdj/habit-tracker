@@ -1,5 +1,7 @@
-import Testing
+import CoreData
 import Foundation
+import SwiftData
+import Testing
 @testable import habit_tracker
 
 struct DayBoundaryTests {
@@ -121,5 +123,142 @@ struct GoalModelTests {
     let goal = Goal(name: "Test", sortOrder: 0)
     #expect(goal.nameHistory.isEmpty)
     #expect(goal.nameHistoryJSON == "[]")
+  }
+}
+
+struct DayModelTests {
+  @Test func intentionDefaultsToEmpty() {
+    let day = Day(dateKey: "2026-07-28")
+
+    #expect(day.intentionText.isEmpty)
+    #expect(day.intentionUpdatedAt == nil)
+  }
+
+  @Test func intentionCanBeCreatedWithDay() {
+    let day = Day(
+      dateKey: "2026-07-28",
+      intentionText: "Ship CloudKit sync"
+    )
+
+    #expect(day.intentionText == "Ship CloudKit sync")
+    #expect(day.intentionUpdatedAt != nil)
+  }
+
+  @Test func persistentSchemaContainsHabitEntities() throws {
+    let model = try #require(
+      NSManagedObjectModel.makeManagedObjectModel(
+        for: [
+          Goal.self,
+          Completion.self,
+          Day.self,
+        ]
+      )
+    )
+
+    let entityNames = Set(
+      model.entities.compactMap(\.name)
+    )
+    #expect(
+      entityNames == [
+        "Goal",
+        "Completion",
+        "Day",
+      ]
+    )
+  }
+
+  @Test @MainActor
+  func migrationMergesIntentionsIntoDays() throws {
+    let migrationDirectory = FileManager.default
+      .temporaryDirectory
+      .appending(
+        path: "HabitMigration-\(UUID().uuidString)",
+        directoryHint: .isDirectory
+      )
+    try FileManager.default.createDirectory(
+      at: migrationDirectory,
+      withIntermediateDirectories: true
+    )
+    defer {
+      try? FileManager.default.removeItem(
+        at: migrationDirectory
+      )
+    }
+
+    let storeURL = migrationDirectory.appending(
+      path: "migration.store"
+    )
+    let dateKey = "2026-07-28"
+    let intentionText = "Preserve this intention"
+
+    try autoreleasepool {
+      let schema = Schema(
+        versionedSchema: HabitSchemaV1.self
+      )
+      let configuration = ModelConfiguration(
+        "MigrationTestV1",
+        schema: schema,
+        url: storeURL,
+        cloudKitDatabase: .none
+      )
+      let container = try ModelContainer(
+        for: schema,
+        configurations: [configuration]
+      )
+      let goal = HabitSchemaV1.Goal(
+        name: "Exercise",
+        sortOrder: 0
+      )
+      container.mainContext.insert(
+        HabitSchemaV1.Day(dateKey: dateKey)
+      )
+      container.mainContext.insert(
+        HabitSchemaV1.Intention(
+          dateKey: dateKey,
+          text: intentionText
+        )
+      )
+      container.mainContext.insert(goal)
+      container.mainContext.insert(
+        HabitSchemaV1.Completion(
+          dateKey: dateKey,
+          goal: goal
+        )
+      )
+      try container.mainContext.save()
+    }
+
+    try autoreleasepool {
+      let schema = Schema(
+        versionedSchema: HabitSchemaV3.self
+      )
+      let configuration = ModelConfiguration(
+        "MigrationTestV3",
+        schema: schema,
+        url: storeURL,
+        cloudKitDatabase: .none
+      )
+      let container = try ModelContainer(
+        for: schema,
+        migrationPlan: HabitSchemaMigrationPlan.self,
+        configurations: [configuration]
+      )
+      let days = try container.mainContext.fetch(
+        FetchDescriptor<Day>()
+      )
+      let goals = try container.mainContext.fetch(
+        FetchDescriptor<Goal>()
+      )
+      let completions = try container.mainContext.fetch(
+        FetchDescriptor<Completion>()
+      )
+
+      #expect(days.count == 1)
+      #expect(days.first?.intentionText == intentionText)
+      #expect(days.first?.intentionUpdatedAt != nil)
+      #expect(goals.map(\.name) == ["Exercise"])
+      #expect(completions.count == 1)
+      #expect(completions.first?.goal?.name == "Exercise")
+    }
   }
 }

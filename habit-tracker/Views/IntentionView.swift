@@ -7,7 +7,7 @@ struct IntentionView: View {
   let isToday: Bool
   var isFocused: FocusState<Bool>.Binding
 
-  @Query private var intentions: [Intention]
+  @Query private var days: [Day]
   @State private var text: String = ""
 
   init(
@@ -19,17 +19,18 @@ struct IntentionView: View {
     self.isToday = isToday
     self.isFocused = isFocused
     let key = dateKey
-    _intentions = Query(
-      filter: #Predicate<Intention> {
+    _days = Query(
+      filter: #Predicate<Day> {
         $0.dateKey == key
-      },
-      sort: \Intention.updatedAt,
-      order: .reverse
+      }
     )
   }
 
-  private var intention: Intention? {
-    intentions.first
+  private var day: Day? {
+    days.max {
+      ($0.intentionUpdatedAt ?? .distantPast)
+        < ($1.intentionUpdatedAt ?? .distantPast)
+    }
   }
 
   var body: some View {
@@ -58,10 +59,10 @@ struct IntentionView: View {
         saveIntention(newValue)
       }
       .onAppear {
-        text = intention?.text ?? ""
+        text = day?.intentionText ?? ""
       }
-      .onChange(of: intentions) {
-        text = intention?.text ?? ""
+      .onChange(of: day?.intentionText) {
+        text = day?.intentionText ?? ""
       }
     }
     .padding(.horizontal)
@@ -75,18 +76,18 @@ struct IntentionView: View {
   }
 
   private func saveIntention(_ newText: String) {
-    if intention != nil {
+    if !days.isEmpty {
       let now = Date()
-      for intention in intentions {
-        intention.text = newText
-        intention.updatedAt = now
+      for day in days {
+        day.intentionText = newText
+        day.intentionUpdatedAt = now
       }
     } else if !newText.isEmpty {
-      let newIntention = Intention(
+      let newDay = Day(
         dateKey: dateKey,
-        text: newText
+        intentionText: newText
       )
-      modelContext.insert(newIntention)
+      modelContext.insert(newDay)
     }
   }
 }

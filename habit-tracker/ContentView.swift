@@ -20,9 +20,6 @@ struct ContentView: View {
   @Query(sort: \Day.dateKey)
   private var allDays: [Day]
 
-  @Query(sort: \Intention.updatedAt, order: .reverse)
-  private var intentions: [Intention]
-
   @State private var effectiveTodayKey: String =
     DayBoundary.dateKey()
   @State private var selectedDateKey: String =
@@ -84,9 +81,14 @@ struct ContentView: View {
   }
 
   private var todayIntentionText: String? {
-    let trimmed = intentions.first {
+    let matchingDays = allDays.filter {
       $0.dateKey == effectiveTodayKey
-    }?.text.trimmingCharacters(
+    }
+    let day = matchingDays.max {
+      ($0.intentionUpdatedAt ?? .distantPast)
+        < ($1.intentionUpdatedAt ?? .distantPast)
+    }
+    let trimmed = day?.intentionText.trimmingCharacters(
       in: .whitespacesAndNewlines
     ) ?? ""
     return trimmed.isEmpty ? nil : trimmed
@@ -180,7 +182,7 @@ struct ContentView: View {
 
 #Preview {
   let container = try! ModelContainer(
-    for: Goal.self, Completion.self, Intention.self, Day.self,
+    for: Goal.self, Completion.self, Day.self,
     configurations: ModelConfiguration(isStoredInMemoryOnly: true)
   )
   let ctx = container.mainContext
@@ -204,8 +206,7 @@ struct ContentView: View {
   ContentView()
     .modelContainer(
       for: [
-        Goal.self, Completion.self,
-        Intention.self, Day.self
+        Goal.self, Completion.self, Day.self
       ],
       inMemory: true
     )

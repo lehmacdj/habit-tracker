@@ -9,12 +9,8 @@ struct habit_trackerApp: App {
   private static let iCloudContainerIdentifier =
     "iCloud.is.devin.habit-tracker"
 
-  private static let modelTypes: [any PersistentModel.Type] = [
-    Goal.self,
-    Completion.self,
-    Intention.self,
-    Day.self,
-  ]
+  private static let modelTypes =
+    HabitSchemaV3.models
 
   init() {
     #if os(iOS)
@@ -25,7 +21,9 @@ struct habit_trackerApp: App {
   }
 
   var sharedModelContainer: ModelContainer = {
-    let schema = Schema(Self.modelTypes)
+    let schema = Schema(
+      versionedSchema: HabitSchemaV3.self
+    )
 
     let config = ModelConfiguration(
       schema: schema,
@@ -40,7 +38,6 @@ struct habit_trackerApp: App {
       if !Self.isTesting {
         CloudKitSchemaInitializer.initializeIfNeeded(
           modelTypes: Self.modelTypes,
-          configuration: config,
           containerIdentifier: iCloudContainerIdentifier
         )
       }
@@ -48,6 +45,7 @@ struct habit_trackerApp: App {
 
       return try ModelContainer(
         for: schema,
+        migrationPlan: HabitSchemaMigrationPlan.self,
         configurations: [config]
       )
     } catch {
