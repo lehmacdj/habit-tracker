@@ -65,13 +65,13 @@ struct CompletionCellView: View {
       .fill(
         isCompleted
           ? Color.green.opacity(0.35)
-          : Color(.systemGray6)
+          : Color.secondary.opacity(0.08)
       )
       .frame(width: 48, height: 48)
       .overlay(
         Rectangle()
           .strokeBorder(
-            Color(.systemGray4),
+            Color.secondary.opacity(0.25),
             lineWidth: 0.5
           )
       )

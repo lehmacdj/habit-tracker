@@ -1,5 +1,10 @@
 import SwiftUI
 import WidgetKit
+#if os(macOS)
+import AppKit
+#else
+import UIKit
+#endif
 
 struct DailyGoalEntry: TimelineEntry {
   let date: Date
@@ -80,18 +85,24 @@ struct HabitGoalWidgetView: View {
   var body: some View {
     Group {
       switch widgetFamily {
+      #if os(iOS)
       case .accessoryInline:
         accessoryInline
       case .accessoryCircular:
         accessoryCircular
       case .accessoryRectangular:
         accessoryRectangular
+      #endif
       default:
         homeScreenWidget
       }
     }
     .containerBackground(for: .widget) {
-      Color(.systemBackground)
+      #if os(macOS)
+      Color(nsColor: .windowBackgroundColor)
+      #else
+      Color(uiColor: .systemBackground)
+      #endif
     }
     .widgetURL(URL(string: "habit-tracker://today"))
   }
@@ -178,13 +189,21 @@ struct HabitGoalWidget: Widget {
     }
     .configurationDisplayName("Daily Goal")
     .description("See today's goal and what you've completed.")
-    .supportedFamilies([
+    .supportedFamilies(supportedFamilies)
+  }
+
+  private var supportedFamilies: [WidgetFamily] {
+    #if os(macOS)
+    [.systemSmall, .systemMedium]
+    #else
+    [
       .systemSmall,
       .systemMedium,
       .accessoryInline,
       .accessoryCircular,
-      .accessoryRectangular
-    ])
+      .accessoryRectangular,
+    ]
+    #endif
   }
 }
 
@@ -268,6 +287,7 @@ private enum WidgetDayBoundary {
   )
 }
 
+#if os(iOS)
 #Preview(as: .accessoryRectangular) {
   HabitGoalWidget()
 } timeline: {
@@ -315,3 +335,4 @@ private enum WidgetDayBoundary {
     completedCount: 3
   )
 }
+#endif

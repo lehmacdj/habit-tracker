@@ -6,14 +6,11 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		03410F5F2F6A8F1400D77F34 /* HabitGoalWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 03410F5D2F6A8F1400D77F34 /* HabitGoalWidget.appex */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
-		03410F602F6A8F1400D77F34 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 03410F182F68BDF100D77F34 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 03410F5A2F6A8F1400D77F34;
-			remoteInfo = HabitGoalWidget;
-		};
 		03410F322F68BDF400D77F34 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 03410F182F68BDF100D77F34 /* Project object */;
@@ -28,20 +25,14 @@
 			remoteGlobalIDString = 03410F1F2F68BDF100D77F34;
 			remoteInfo = "habit-tracker";
 		};
-/* End PBXContainerItemProxy section */
-
-/* Begin PBXBuildFile section */
-		03410F5F2F6A8F1400D77F34 /* HabitGoalWidget.appex in Embed Foundation Extensions */ = {
-			isa = PBXBuildFile;
-			fileRef = 03410F5D2F6A8F1400D77F34 /* HabitGoalWidget.appex */;
-			settings = {
-				ATTRIBUTES = (
-					CodeSignOnCopy,
-					RemoveHeadersOnCopy,
-				);
-			};
+		03410F602F6A8F1400D77F34 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 03410F182F68BDF100D77F34 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 03410F5A2F6A8F1400D77F34;
+			remoteInfo = HabitGoalWidget;
 		};
-/* End PBXBuildFile section */
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
 		03410F612F6A8F1400D77F34 /* Embed Foundation Extensions */ = {
@@ -65,33 +56,23 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		03410F592F6A8F1400D77F34 /* Exceptions for "HabitGoalWidget" folder in "HabitGoalWidget" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				HabitGoalWidget.entitlements,
-				Info.plist,
-			);
-			target = 03410F5A2F6A8F1400D77F34 /* HabitGoalWidget */;
-		};
 		03410F432F68BDF400D77F34 /* Exceptions for "habit-tracker" folder in "habit-tracker" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
-				habit_tracker.entitlements,
 			);
 			target = 03410F1F2F68BDF100D77F34 /* habit-tracker */;
+		};
+		03410F592F6A8F1400D77F34 /* Exceptions for "HabitGoalWidget" folder in "HabitGoalWidget" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 03410F5A2F6A8F1400D77F34 /* HabitGoalWidget */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		03410F582F6A8F1400D77F34 /* HabitGoalWidget */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				03410F592F6A8F1400D77F34 /* Exceptions for "HabitGoalWidget" folder in "HabitGoalWidget" target */,
-			);
-			path = HabitGoalWidget;
-			sourceTree = "<group>";
-		};
 		03410F222F68BDF100D77F34 /* habit-tracker */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
@@ -110,17 +91,18 @@
 			path = "habit-trackerUITests";
 			sourceTree = "<group>";
 		};
+		03410F582F6A8F1400D77F34 /* HabitGoalWidget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				03410F592F6A8F1400D77F34 /* Exceptions for "HabitGoalWidget" folder in "HabitGoalWidget" target */,
+			);
+			path = HabitGoalWidget;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		03410F1D2F68BDF100D77F34 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		03410F5C2F6A8F1400D77F34 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -135,6 +117,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		03410F382F68BDF400D77F34 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		03410F5C2F6A8F1400D77F34 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -193,28 +182,6 @@
 			productReference = 03410F202F68BDF100D77F34 /* habit-tracker.app */;
 			productType = "com.apple.product-type.application";
 		};
-		03410F5A2F6A8F1400D77F34 /* HabitGoalWidget */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = 03410F672F6A8F1400D77F34 /* Build configuration list for PBXNativeTarget "HabitGoalWidget" */;
-			buildPhases = (
-				03410F5B2F6A8F1400D77F34 /* Sources */,
-				03410F5C2F6A8F1400D77F34 /* Frameworks */,
-				03410F5E2F6A8F1400D77F34 /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			fileSystemSynchronizedGroups = (
-				03410F582F6A8F1400D77F34 /* HabitGoalWidget */,
-			);
-			name = HabitGoalWidget;
-			packageProductDependencies = (
-			);
-			productName = HabitGoalWidget;
-			productReference = 03410F5D2F6A8F1400D77F34 /* HabitGoalWidget.appex */;
-			productType = "com.apple.product-type.app-extension";
-		};
 		03410F302F68BDF400D77F34 /* habit-trackerTests */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 03410F492F68BDF400D77F34 /* Build configuration list for PBXNativeTarget "habit-trackerTests" */;
@@ -261,6 +228,28 @@
 			productReference = 03410F3B2F68BDF400D77F34 /* habit-trackerUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		03410F5A2F6A8F1400D77F34 /* HabitGoalWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 03410F672F6A8F1400D77F34 /* Build configuration list for PBXNativeTarget "HabitGoalWidget" */;
+			buildPhases = (
+				03410F5B2F6A8F1400D77F34 /* Sources */,
+				03410F5C2F6A8F1400D77F34 /* Frameworks */,
+				03410F5E2F6A8F1400D77F34 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				03410F582F6A8F1400D77F34 /* HabitGoalWidget */,
+			);
+			name = HabitGoalWidget;
+			packageProductDependencies = (
+			);
+			productName = HabitGoalWidget;
+			productReference = 03410F5D2F6A8F1400D77F34 /* HabitGoalWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -271,19 +260,19 @@
 				LastSwiftUpdateCheck = 2630;
 				LastUpgradeCheck = 2700;
 				TargetAttributes = {
-				03410F1F2F68BDF100D77F34 = {
-					CreatedOnToolsVersion = 26.3;
-				};
-				03410F5A2F6A8F1400D77F34 = {
-					CreatedOnToolsVersion = 26.3;
-				};
-				03410F302F68BDF400D77F34 = {
+					03410F1F2F68BDF100D77F34 = {
+						CreatedOnToolsVersion = 26.3;
+					};
+					03410F302F68BDF400D77F34 = {
 						CreatedOnToolsVersion = 26.3;
 						TestTargetID = 03410F1F2F68BDF100D77F34;
 					};
 					03410F3A2F68BDF400D77F34 = {
 						CreatedOnToolsVersion = 26.3;
 						TestTargetID = 03410F1F2F68BDF100D77F34;
+					};
+					03410F5A2F6A8F1400D77F34 = {
+						CreatedOnToolsVersion = 26.3;
 					};
 				};
 			};
@@ -317,13 +306,6 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		03410F5E2F6A8F1400D77F34 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		03410F2F2F68BDF400D77F34 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -338,17 +320,17 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-/* End PBXResourcesBuildPhase section */
-
-/* Begin PBXSourcesBuildPhase section */
-		03410F1C2F68BDF100D77F34 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
+		03410F5E2F6A8F1400D77F34 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		03410F5B2F6A8F1400D77F34 /* Sources */ = {
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		03410F1C2F68BDF100D77F34 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -369,6 +351,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		03410F5B2F6A8F1400D77F34 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -377,15 +366,15 @@
 			target = 03410F1F2F68BDF100D77F34 /* habit-tracker */;
 			targetProxy = 03410F322F68BDF400D77F34 /* PBXContainerItemProxy */;
 		};
-		03410F622F6A8F1400D77F34 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 03410F5A2F6A8F1400D77F34 /* HabitGoalWidget */;
-			targetProxy = 03410F602F6A8F1400D77F34 /* PBXContainerItemProxy */;
-		};
 		03410F3D2F68BDF400D77F34 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 03410F1F2F68BDF100D77F34 /* habit-tracker */;
 			targetProxy = 03410F3C2F68BDF400D77F34 /* PBXContainerItemProxy */;
+		};
+		03410F622F6A8F1400D77F34 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 03410F5A2F6A8F1400D77F34 /* HabitGoalWidget */;
+			targetProxy = 03410F602F6A8F1400D77F34 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -426,7 +415,7 @@
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
 				SUPPORTS_MACCATALYST = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
@@ -474,7 +463,7 @@
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
 				SUPPORTS_MACCATALYST = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
@@ -483,73 +472,6 @@
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				XROS_DEPLOYMENT_TARGET = 26.2;
-			};
-			name = Release;
-		};
-		03410F632F6A8F1400D77F34 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				APPLICATION_EXTENSION_API_ONLY = YES;
-				CODE_SIGN_ENTITLEMENTS = HabitGoalWidget/HabitGoalWidget.entitlements;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = YJTZ9H869C;
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = HabitGoalWidget/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "is.devin.habit-tracker.HabitGoalWidget";
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = iphoneos;
-				SKIP_INSTALL = YES;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				WRAPPER_EXTENSION = appex;
-			};
-			name = Debug;
-		};
-		03410F642F6A8F1400D77F34 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				APPLICATION_EXTENSION_API_ONLY = YES;
-				CODE_SIGN_ENTITLEMENTS = HabitGoalWidget/HabitGoalWidget.entitlements;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEAD_CODE_STRIPPING = YES;
-				DEVELOPMENT_TEAM = YJTZ9H869C;
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = HabitGoalWidget/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "is.devin.habit-tracker.HabitGoalWidget";
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = iphoneos;
-				SKIP_INSTALL = YES;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				WRAPPER_EXTENSION = appex;
 			};
 			name = Release;
 		};
@@ -779,6 +701,75 @@
 			};
 			name = Release;
 		};
+		03410F632F6A8F1400D77F34 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = HabitGoalWidget/HabitGoalWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = YJTZ9H869C;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = HabitGoalWidget/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 26.1;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "is.devin.habit-tracker.HabitGoalWidget";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				WRAPPER_EXTENSION = appex;
+			};
+			name = Debug;
+		};
+		03410F642F6A8F1400D77F34 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = HabitGoalWidget/HabitGoalWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = YJTZ9H869C;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = HabitGoalWidget/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 26.1;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "is.devin.habit-tracker.HabitGoalWidget";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				WRAPPER_EXTENSION = appex;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -800,15 +791,6 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		03410F672F6A8F1400D77F34 /* Build configuration list for PBXNativeTarget "HabitGoalWidget" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				03410F632F6A8F1400D77F34 /* Debug */,
-				03410F642F6A8F1400D77F34 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
 		03410F492F68BDF400D77F34 /* Build configuration list for PBXNativeTarget "habit-trackerTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -823,6 +805,15 @@
 			buildConfigurations = (
 				03410F4D2F68BDF400D77F34 /* Debug */,
 				03410F4E2F68BDF400D77F34 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		03410F672F6A8F1400D77F34 /* Build configuration list for PBXNativeTarget "HabitGoalWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				03410F632F6A8F1400D77F34 /* Debug */,
+				03410F642F6A8F1400D77F34 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

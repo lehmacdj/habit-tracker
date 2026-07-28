@@ -222,7 +222,7 @@ struct HabitGridView: View {
       )
     }
     .frame(height: cellSize)
-    .background(Color(.systemGray4))
+    .background(Color.secondary.opacity(0.25))
   }
 
   // MARK: - Goal Row
@@ -437,7 +437,7 @@ private struct GoalDragPreview: View {
       .font(.body)
       .padding(.horizontal, 12)
       .padding(.vertical, 8)
-      .background(Color(.systemBackground))
+      .background(.background)
       .clipShape(RoundedRectangle(cornerRadius: 6))
       .shadow(radius: 4)
   }

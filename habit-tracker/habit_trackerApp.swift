@@ -67,7 +67,13 @@ struct habit_trackerApp: App {
   var body: some Scene {
     WindowGroup {
       ContentView()
+        #if os(macOS)
+        .frame(minWidth: 480, minHeight: 360)
+        #endif
     }
+    #if os(macOS)
+    .defaultSize(width: 800, height: 600)
+    #endif
     .modelContainer(sharedModelContainer)
   }
 }

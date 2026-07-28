@@ -26,13 +26,23 @@ final class habit_trackerUITests: XCTestCase {
     let df = DateFormatter()
     df.dateFormat = "M/d"
     let todayStr = df.string(from: Date())
+    #if os(macOS)
+    let todayHeader = app.buttons[
+      "dateHeader-\(DayBoundaryKey.today())"
+    ]
+    XCTAssertTrue(
+      todayHeader.waitForExistence(timeout: defaultTimeout),
+      "Today's date \(todayStr) should appear in header"
+    )
+    todayHeader.click()
+    #else
     let todayLabel = app.staticTexts[todayStr]
     XCTAssertTrue(
       todayLabel.exists,
       "Today's date \(todayStr) should appear in header"
     )
-
     todayLabel.tap()
+    #endif
     XCTAssertTrue(app.staticTexts["Today I will..."].exists)
 
     let field = try XCTUnwrap(
@@ -70,7 +80,11 @@ final class habit_trackerUITests: XCTestCase {
     )
 
     // Double-tap to enter edit mode
+    #if os(macOS)
+    goalField.doubleClick()
+    #else
     goalField.doubleTap()
+    #endif
 
     // The field should now be enabled/focused
     let editField = try XCTUnwrap(
@@ -79,7 +93,11 @@ final class habit_trackerUITests: XCTestCase {
     )
 
     // Clear existing text and type new name
+    #if os(macOS)
+    editField.typeKey("a", modifierFlags: .command)
+    #else
     editField.tap(withNumberOfTaps: 3, numberOfTouches: 1)
+    #endif
     editField.typeText("NewName\n")
 
     // New name should appear
@@ -131,7 +149,11 @@ final class habit_trackerUITests: XCTestCase {
       btn.waitForExistence(timeout: defaultTimeout),
       "Add goal button should exist"
     )
+    #if os(macOS)
+    btn.click()
+    #else
     btn.tap()
+    #endif
   }
 
   /// Finds the currently editing (enabled/focused) goal
@@ -258,5 +280,14 @@ final class habit_trackerUITests: XCTestCase {
       )
     }
     return query()
+  }
+}
+
+private enum DayBoundaryKey {
+  static func today() -> String {
+    let formatter = DateFormatter()
+    formatter.dateFormat = "yyyy-MM-dd"
+    let adjustedDate = Date().addingTimeInterval(-4 * 60 * 60)
+    return formatter.string(from: adjustedDate)
   }
 }

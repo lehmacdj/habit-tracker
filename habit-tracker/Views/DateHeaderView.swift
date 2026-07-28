@@ -19,21 +19,24 @@ struct DateHeaderView: View {
       ? String(parts[1])
       : ""
 
-    VStack(spacing: 2) {
-      Text(dayOfWeek)
-        .font(.caption)
-        .fontWeight(isSelected ? .bold : .regular)
-      Text(monthDay)
-        .font(.caption2)
+    Button(action: onTap) {
+      VStack(spacing: 2) {
+        Text(dayOfWeek)
+          .font(.caption)
+          .fontWeight(isSelected ? .bold : .regular)
+        Text(monthDay)
+          .font(.caption2)
+      }
+      .frame(width: 48, height: 48)
+      .background(
+        isSelected
+          ? Color.accentColor.opacity(0.15)
+          : Color.clear
+      )
+      .contentShape(Rectangle())
     }
-    .frame(width: 48, height: 48)
-    .background(
-      isSelected
-        ? Color.accentColor.opacity(0.15)
-        : Color.clear
-    )
-    .contentShape(Rectangle())
-    .onTapGesture { onTap() }
+    .buttonStyle(.plain)
+    .accessibilityIdentifier("dateHeader-\(dateKey)")
     .contextMenu {
       if canInsertPrevious {
         Button {
