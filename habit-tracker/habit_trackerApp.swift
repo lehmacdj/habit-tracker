@@ -34,6 +34,13 @@ struct habit_trackerApp: App {
     )
 
     do {
+      if !Self.isTesting {
+        try MigrationStoreBackup.createIfNeeded(
+          storeURL: config.url,
+          modelTypes: Self.modelTypes
+        )
+      }
+
       #if DEBUG
       if !Self.isTesting {
         CloudKitSchemaInitializer.initializeIfNeeded(

@@ -11,6 +11,9 @@ struct ContentView: View {
   )
   private var goals: [Goal]
 
+  @Query(sort: \Goal.sortOrder)
+  private var allGoals: [Goal]
+
   @Query(
     filter: #Predicate<Day> { !$0.isHidden },
     sort: \Day.dateKey
@@ -20,63 +23,80 @@ struct ContentView: View {
   @Query(sort: \Day.dateKey)
   private var allDays: [Day]
 
+  @Query(sort: \Completion.dateKey)
+  private var allCompletions: [Completion]
+
   @State private var effectiveTodayKey: String =
     DayBoundary.dateKey()
   @State private var selectedDateKey: String =
     DayBoundary.dateKey()
+  @State private var isShowingExport = false
   @FocusState private var isIntentionFocused: Bool
 
   var body: some View {
-    VStack(spacing: 0) {
-      IntentionView(
-        dateKey: selectedDateKey,
-        isToday: selectedDateKey == effectiveTodayKey,
-        isFocused: $isIntentionFocused
-      )
-      .id(selectedDateKey)
+    ZStack(alignment: .topTrailing) {
+      VStack(spacing: 0) {
+        IntentionView(
+          dateKey: selectedDateKey,
+          isToday: selectedDateKey == effectiveTodayKey,
+          isFocused: $isIntentionFocused
+        )
+        .id(selectedDateKey)
 
-      HabitGridView(
-        goals: goals,
-        visibleDays: visibleDays,
-        effectiveTodayKey: effectiveTodayKey,
-        selectedDateKey: selectedDateKey,
-        onSelectDate: { key in
-          isIntentionFocused = false
-          selectedDateKey = key
-        },
-        onDeleteDate: { day in
-          let wasEffectiveToday =
-            day.dateKey == effectiveTodayKey
-          withAnimation {
-            day.isHidden = true
+        HabitGridView(
+          goals: goals,
+          visibleDays: visibleDays,
+          effectiveTodayKey: effectiveTodayKey,
+          selectedDateKey: selectedDateKey,
+          onSelectDate: { key in
+            isIntentionFocused = false
+            selectedDateKey = key
+          },
+          onDeleteDate: { day in
+            deleteDate(day.dateKey)
+          },
+          onSpawnTomorrow: {
+            spawnTomorrow()
+          },
+          onInsertDate: { key in
+            insertDate(key)
+          },
+          onGridTapped: {
+            isIntentionFocused = false
           }
-          if wasEffectiveToday {
-            ensureTodayExists()
-          }
-        },
-        onSpawnTomorrow: {
-          spawnTomorrow()
-        },
-        onInsertDate: { key in
-          insertDate(key)
-        },
-        onGridTapped: {
-          isIntentionFocused = false
-        }
-      )
+        )
+      }
+
+      Button {
+        isIntentionFocused = false
+        isShowingExport = true
+      } label: {
+        Image(systemName: "square.and.arrow.up")
+          .font(.body)
+          .padding(12)
+          .contentShape(Rectangle())
+      }
+      .buttonStyle(.plain)
+      .accessibilityLabel("Export Habit Data")
+      .accessibilityIdentifier("exportHabitDataButton")
     }
     .onAppear {
       ensureTodayExists()
       syncWidgetSummary()
+      saveWeeklyBackupIfNeeded()
     }
     .onChange(of: scenePhase) { _, newPhase in
       if newPhase == .active {
         ensureTodayExists()
         syncWidgetSummary()
+        saveWeeklyBackupIfNeeded()
       }
     }
     .onChange(of: widgetSummaryFingerprint) {
       syncWidgetSummary()
+    }
+    .sheet(isPresented: $isShowingExport) {
+      ExportDataView()
     }
   }
 
@@ -155,6 +175,23 @@ struct ContentView: View {
     }
   }
 
+  private func deleteDate(_ dateKey: String) {
+    let outcome = withAnimation {
+      DayDeletion.hide(
+        dateKey: dateKey,
+        in: allDays,
+        selectedDateKey: selectedDateKey,
+        effectiveTodayKey: effectiveTodayKey
+      )
+    }
+
+    if outcome.shouldEnsureTodayExists {
+      ensureTodayExists()
+    } else {
+      selectedDateKey = outcome.selectedDateKey
+    }
+  }
+
   private func ensureDayVisible(_ dateKey: String) {
     if allDays.contains(
       where: { $0.dateKey == dateKey && !$0.isHidden }
@@ -177,6 +214,23 @@ struct ContentView: View {
       todayIntention: todayIntentionText,
       completedCount: completedGoalsTodayCount
     )
+  }
+
+  private func saveWeeklyBackupIfNeeded() {
+    let keys = allDays.map(\.dateKey)
+      + allCompletions.map(\.dateKey)
+    let fallbackKey = DayBoundary.dateKey()
+    let startKey = keys.min() ?? fallbackKey
+    let endKey = keys.max() ?? fallbackKey
+    let export = HabitDataExport.make(
+      goals: allGoals,
+      days: allDays,
+      completions: allCompletions,
+      startDateKey: startKey,
+      endDateKey: endKey
+    )
+
+    try? HabitBackupStore.saveWeeklyIfNeeded(export)
   }
 }
 

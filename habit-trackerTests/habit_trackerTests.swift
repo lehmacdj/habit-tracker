@@ -209,8 +209,20 @@ struct DayModelTests {
         name: "Exercise",
         sortOrder: 0
       )
+      goal.isDeleted = true
+      goal.nameHistoryJSON =
+        """
+        [{"oldName":"Movement","changedAt":0}]
+        """
+      let completion = HabitSchemaV1.Completion(
+        dateKey: dateKey,
+        goal: goal
+      )
+      completion.isCompleted = false
+      let day = HabitSchemaV1.Day(dateKey: dateKey)
+      day.isHidden = true
       container.mainContext.insert(
-        HabitSchemaV1.Day(dateKey: dateKey)
+        day
       )
       container.mainContext.insert(
         HabitSchemaV1.Intention(
@@ -220,10 +232,7 @@ struct DayModelTests {
       )
       container.mainContext.insert(goal)
       container.mainContext.insert(
-        HabitSchemaV1.Completion(
-          dateKey: dateKey,
-          goal: goal
-        )
+        completion
       )
       try container.mainContext.save()
     }
@@ -256,9 +265,293 @@ struct DayModelTests {
       #expect(days.count == 1)
       #expect(days.first?.intentionText == intentionText)
       #expect(days.first?.intentionUpdatedAt != nil)
+      #expect(days.first?.isHidden == true)
       #expect(goals.map(\.name) == ["Exercise"])
+      #expect(goals.first?.isDeleted == true)
+      #expect(
+        goals.first?.nameHistoryJSON
+          == """
+          [{"oldName":"Movement","changedAt":0}]
+          """
+      )
       #expect(completions.count == 1)
+      #expect(completions.first?.isCompleted == false)
       #expect(completions.first?.goal?.name == "Exercise")
     }
+  }
+
+  @Test
+  func unchangedEntityHashesRemainStable() throws {
+    let versionOne = try #require(
+      NSManagedObjectModel.makeManagedObjectModel(
+        for: HabitSchemaV1.models
+      )
+    )
+    let versionTwo = try #require(
+      NSManagedObjectModel.makeManagedObjectModel(
+        for: HabitSchemaV2.models
+      )
+    )
+    let versionThree = try #require(
+      NSManagedObjectModel.makeManagedObjectModel(
+        for: HabitSchemaV3.models
+      )
+    )
+
+    for entityName in ["Goal", "Completion"] {
+      #expect(
+        versionOne.entityVersionHashesByName[entityName]
+          == versionTwo.entityVersionHashesByName[entityName]
+      )
+      #expect(
+        versionTwo.entityVersionHashesByName[entityName]
+          == versionThree.entityVersionHashesByName[entityName]
+      )
+    }
+    #expect(
+      versionTwo.entityVersionHashesByName["Day"]
+        == versionThree.entityVersionHashesByName["Day"]
+    )
+  }
+}
+
+struct HabitDataExportTests {
+  @Test @MainActor
+  func exportFiltersDateScopedRecords() throws {
+    let goal = Goal(name: "Exercise", sortOrder: 0)
+    let inRangeDay = Day(
+      dateKey: "2026-07-20",
+      intentionText: "Run"
+    )
+    let outOfRangeDay = Day(dateKey: "2026-07-21")
+    let inRangeCompletion = Completion(
+      dateKey: "2026-07-20",
+      goal: goal
+    )
+    let outOfRangeCompletion = Completion(
+      dateKey: "2026-07-21",
+      goal: goal
+    )
+
+    let export = HabitDataExport.make(
+      goals: [goal],
+      days: [inRangeDay, outOfRangeDay],
+      completions: [
+        inRangeCompletion,
+        outOfRangeCompletion,
+      ],
+      startDateKey: "2026-07-20",
+      endDateKey: "2026-07-20"
+    )
+
+    #expect(export.formatVersion == 1)
+    #expect(export.modelSchemaVersion == "3.0.0")
+    #expect(export.goals.map(\.name) == ["Exercise"])
+    #expect(export.days.map(\.dateKey) == ["2026-07-20"])
+    #expect(
+      export.completions.map(\.dateKey)
+        == ["2026-07-20"]
+    )
+    #expect(export.completions.first?.goalID == goal.id)
+  }
+
+  @Test @MainActor
+  func exportJSONRoundTrips() throws {
+    let goal = Goal(name: "Read", sortOrder: 0)
+    let export = HabitDataExport.make(
+      goals: [goal],
+      days: [Day(dateKey: "2026-07-20")],
+      completions: [],
+      startDateKey: "2026-07-20",
+      endDateKey: "2026-07-20"
+    )
+
+    let decoder = JSONDecoder()
+    decoder.dateDecodingStrategy = .iso8601
+    let decoded = try decoder.decode(
+      HabitDataExport.self,
+      from: export.encodedJSON()
+    )
+
+    #expect(decoded.formatVersion == 1)
+    #expect(decoded.modelSchemaVersion == "3.0.0")
+    #expect(decoded.goals.first?.id == goal.id)
+    #expect(decoded.dateRange.start == "2026-07-20")
+    #expect(decoded.dateRange.end == "2026-07-20")
+  }
+
+  @Test @MainActor
+  func weeklyBackupsAreImmutableAndRateLimited() throws {
+    let directory = FileManager.default
+      .temporaryDirectory
+      .appending(
+        path: "HabitBackup-\(UUID().uuidString)",
+        directoryHint: .isDirectory
+      )
+    try FileManager.default.createDirectory(
+      at: directory,
+      withIntermediateDirectories: true
+    )
+    defer {
+      try? FileManager.default.removeItem(at: directory)
+    }
+
+    let now = Date.now
+    let export = HabitDataExport.make(
+      goals: [],
+      days: [Day(dateKey: "2026-07-20")],
+      completions: [],
+      startDateKey: "2026-07-20",
+      endDateKey: "2026-07-20",
+      exportedAt: now
+    )
+
+    try HabitBackupStore.saveWeeklyIfNeeded(
+      export,
+      now: now,
+      directoryURL: directory
+    )
+    try HabitBackupStore.saveWeeklyIfNeeded(
+      export,
+      now: now.addingTimeInterval(24 * 60 * 60),
+      directoryURL: directory
+    )
+    #expect(
+      try HabitBackupStore.backups(
+        directoryURL: directory
+      ).count == 1
+    )
+
+    try HabitBackupStore.saveWeeklyIfNeeded(
+      export,
+      now: now.addingTimeInterval(8 * 24 * 60 * 60),
+      directoryURL: directory
+    )
+    #expect(
+      try HabitBackupStore.backups(
+        directoryURL: directory
+      ).count == 2
+    )
+  }
+}
+
+struct DayDeletionTests {
+  @Test @MainActor
+  func hidesEveryDuplicateAndMovesSelection() {
+    let earlierDay = Day(dateKey: "2026-07-19")
+    let duplicateA = Day(dateKey: "2026-07-20")
+    let duplicateB = Day(dateKey: "2026-07-20")
+    let laterDay = Day(dateKey: "2026-07-21")
+
+    let outcome = DayDeletion.hide(
+      dateKey: "2026-07-20",
+      in: [
+        earlierDay,
+        duplicateA,
+        duplicateB,
+        laterDay,
+      ],
+      selectedDateKey: "2026-07-20",
+      effectiveTodayKey: "2026-07-21"
+    )
+
+    #expect(duplicateA.isHidden)
+    #expect(duplicateB.isHidden)
+    #expect(!earlierDay.isHidden)
+    #expect(!laterDay.isHidden)
+    #expect(outcome.selectedDateKey == "2026-07-19")
+    #expect(!outcome.shouldEnsureTodayExists)
+  }
+
+  @Test @MainActor
+  func deletingEffectiveTodayRequestsRestoration() {
+    let day = Day(dateKey: "2026-07-20")
+
+    let outcome = DayDeletion.hide(
+      dateKey: day.dateKey,
+      in: [day],
+      selectedDateKey: day.dateKey,
+      effectiveTodayKey: day.dateKey
+    )
+
+    #expect(day.isHidden)
+    #expect(outcome.shouldEnsureTodayExists)
+  }
+}
+
+struct MigrationStoreBackupTests {
+  @Test
+  func snapshotCopiesStoreFamilyOnlyOnce() throws {
+    let directory = FileManager.default
+      .temporaryDirectory
+      .appending(
+        path: "MigrationSnapshot-\(UUID().uuidString)",
+        directoryHint: .isDirectory
+      )
+    let sourceDirectory = directory.appending(
+      path: "Source",
+      directoryHint: .isDirectory
+    )
+    let backupDirectory = directory.appending(
+      path: "Backups",
+      directoryHint: .isDirectory
+    )
+    try FileManager.default.createDirectory(
+      at: sourceDirectory,
+      withIntermediateDirectories: true
+    )
+    defer {
+      try? FileManager.default.removeItem(at: directory)
+    }
+
+    let storeURL = sourceDirectory.appending(
+      path: "default.store"
+    )
+    let originalStore = Data("original".utf8)
+    let originalWAL = Data("wal".utf8)
+    try originalStore.write(to: storeURL)
+    try originalWAL.write(
+      to: URL(filePath: storeURL.path + "-wal")
+    )
+
+    let createdSnapshot =
+      try MigrationStoreBackup.createIfNeeded(
+        storeURL: storeURL,
+        modelTypes: HabitSchemaV3.models,
+        backupRootURL: backupDirectory
+      )
+    let snapshot = try #require(createdSnapshot)
+    #expect(
+      try Data(
+        contentsOf: snapshot.appending(
+          path: "default.store"
+        )
+      ) == originalStore
+    )
+    #expect(
+      try Data(
+        contentsOf: snapshot.appending(
+          path: "default.store-wal"
+        )
+      ) == originalWAL
+    )
+
+    try Data("changed".utf8).write(to: storeURL)
+    let existingSnapshot =
+      try MigrationStoreBackup.createIfNeeded(
+      storeURL: storeURL,
+      modelTypes: HabitSchemaV3.models,
+      backupRootURL: backupDirectory
+    )
+    let secondSnapshot = try #require(existingSnapshot)
+
+    #expect(secondSnapshot == snapshot)
+    #expect(
+      try Data(
+        contentsOf: secondSnapshot.appending(
+          path: "default.store"
+        )
+      ) == originalStore
+    )
   }
 }

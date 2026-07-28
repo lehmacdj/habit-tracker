@@ -21,6 +21,12 @@ enum DayBoundary {
     return formatter.string(from: adjusted)
   }
 
+  /// Formats a calendar date without applying the 4:00 AM
+  /// logical-day boundary.
+  static func calendarDateKey(for date: Date) -> String {
+    formatter.string(from: date)
+  }
+
   /// Returns the dateKey for tomorrow relative to a given key.
   static func tomorrowKey(from key: String) -> String {
     guard let date = formatter.date(from: key) else {

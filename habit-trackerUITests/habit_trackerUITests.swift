@@ -140,6 +140,32 @@ final class habit_trackerUITests: XCTestCase {
     )
   }
 
+  @MainActor
+  func testExportSheetOpens() throws {
+    let exportButton = app.buttons["exportHabitDataButton"]
+    XCTAssertTrue(
+      exportButton.waitForExistence(timeout: defaultTimeout)
+    )
+    #if os(macOS)
+    exportButton.click()
+    #else
+    exportButton.tap()
+    #endif
+
+    XCTAssertTrue(
+      app.navigationBars["Export Habit Data"]
+        .waitForExistence(timeout: defaultTimeout)
+        || app.staticTexts["Export Habit Data"]
+          .waitForExistence(timeout: defaultTimeout)
+    )
+    XCTAssertTrue(
+      app.buttons["saveJSONExportButton"].exists
+    )
+    XCTAssertTrue(
+      app.staticTexts["Automatic Weekly Backups"].exists
+    )
+  }
+
   // MARK: - Helpers
 
   @MainActor
