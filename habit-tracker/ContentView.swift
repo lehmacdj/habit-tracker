@@ -46,6 +46,8 @@ struct ContentView: View {
         HabitGridView(
           goals: goals,
           visibleDays: visibleDays,
+          completions: allCompletions,
+          hiddenDateKeys: hiddenDateKeys,
           effectiveTodayKey: effectiveTodayKey,
           selectedDateKey: selectedDateKey,
           onSelectDate: { key in
@@ -112,6 +114,13 @@ struct ContentView: View {
       in: .whitespacesAndNewlines
     ) ?? ""
     return trimmed.isEmpty ? nil : trimmed
+  }
+
+  private var hiddenDateKeys: Set<String> {
+    let hiddenKeys = Set(
+      allDays.filter(\.isHidden).map(\.dateKey)
+    )
+    return hiddenKeys.subtracting(visibleDays.map(\.dateKey))
   }
 
   private var completedGoalsTodayCount: Int {

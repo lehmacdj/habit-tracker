@@ -64,7 +64,9 @@ struct CompletionCellView: View {
     Rectangle()
       .fill(
         isCompleted
-          ? Color.green.opacity(0.35)
+          ? Color.green.opacity(
+            HabitStreak.completedGreenOpacity
+          )
           : Color.secondary.opacity(0.08)
       )
       .frame(width: 48, height: 48)

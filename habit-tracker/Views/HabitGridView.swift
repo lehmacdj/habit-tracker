@@ -5,6 +5,8 @@ struct HabitGridView: View {
   @Environment(\.modelContext) private var modelContext
   let goals: [Goal]
   let visibleDays: [Day]
+  let completions: [Completion]
+  let hiddenDateKeys: Set<String>
   let effectiveTodayKey: String
   let selectedDateKey: String
   let onSelectDate: (String) -> Void
@@ -249,6 +251,7 @@ struct HabitGridView: View {
 
       GoalNameView(
         goal: goal,
+        streakLength: streakLength(for: goal),
         startEditing: goal.id == newGoalId,
         onArchive: {
           withAnimation { goal.isDeleted = true }
@@ -320,6 +323,25 @@ struct HabitGridView: View {
   }
 
   // MARK: - Helpers
+
+  private func streakLength(for goal: Goal) -> Int? {
+    let entries: [HabitStreak.Entry] = completions.compactMap {
+      completion -> HabitStreak.Entry? in
+      guard completion.goal?.id == goal.id else {
+        return nil
+      }
+      return HabitStreak.Entry(
+        dateKey: completion.dateKey,
+        isCompleted: completion.isCompleted,
+        updatedAt: completion.updatedAt
+      )
+    }
+    return HabitStreak.currentQualifyingLength(
+      entries: entries,
+      hiddenDateKeys: hiddenDateKeys,
+      effectiveTodayKey: effectiveTodayKey
+    )
+  }
 
   private func cellAge(
     for key: String

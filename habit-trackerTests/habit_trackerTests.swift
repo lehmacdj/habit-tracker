@@ -4,6 +4,163 @@ import SwiftData
 import Testing
 @testable import habit_tracker
 
+struct HabitStreakTests {
+  private let todayKey = "2026-07-31"
+
+  @Test func requiresThirtyEligibleDays() {
+    let length = streakLength(
+      completedEntries: entries(count: 27)
+    )
+
+    #expect(length == nil)
+  }
+
+  @Test func twoExceptionsAllowTwentyEightCompletionsToQualify() {
+    let length = streakLength(
+      completedEntries: entries(count: 28)
+    )
+
+    #expect(length == 30)
+  }
+
+  @Test func exceptionAllowanceIncreasesAtMilestones() {
+    #expect(streakLength(
+      completedEntries: entries(count: 47)
+    ) == 50)
+    #expect(streakLength(
+      completedEntries: entries(count: 66)
+    ) == 70)
+    #expect(streakLength(
+      completedEntries: entries(count: 85)
+    ) == 90)
+  }
+
+  @Test func hiddenDaysAreNeitherCompletionsNorExceptions() {
+    let hiddenKey = dateKey(daysBeforeToday: 27)
+    let olderCompletion = HabitStreak.Entry(
+      dateKey: dateKey(daysBeforeToday: 30),
+      isCompleted: true,
+      updatedAt: .distantPast
+    )
+    let completedEntries = entries(count: 27)
+      + [olderCompletion]
+
+    #expect(streakLength(
+      completedEntries: completedEntries,
+      hiddenDateKeys: [hiddenKey]
+    ) == 30)
+    #expect(streakLength(
+      completedEntries: completedEntries
+    ) == nil)
+  }
+
+  @Test func uncheckedCurrentDayDoesNotCountAsException() {
+    let yesterdayKey = DayBoundary.yesterdayKey(from: todayKey)
+    let uncheckedToday = HabitStreak.Entry(
+      dateKey: todayKey,
+      isCompleted: false,
+      updatedAt: .now
+    )
+    let completedEntries = entries(
+      count: 28,
+      endingAt: yesterdayKey
+    ) + [uncheckedToday]
+
+    #expect(streakLength(
+      completedEntries: completedEntries
+    ) == 30)
+  }
+
+  @Test func mostRecentlyUpdatedDuplicateDeterminesCompletion() {
+    let yesterdayKey = DayBoundary.yesterdayKey(from: todayKey)
+    let completedEntries = entries(
+      count: 28,
+      endingAt: yesterdayKey
+    ) + [
+      HabitStreak.Entry(
+        dateKey: todayKey,
+        isCompleted: true,
+        updatedAt: Date(timeIntervalSince1970: 1)
+      ),
+      HabitStreak.Entry(
+        dateKey: todayKey,
+        isCompleted: false,
+        updatedAt: Date(timeIntervalSince1970: 2)
+      ),
+    ]
+
+    #expect(streakLength(
+      completedEntries: completedEntries
+    ) == 30)
+  }
+
+  @Test func sixthExceptionResetsAnOldStreak() {
+    let beforeSixMisses = dateKey(daysBeforeToday: 7)
+    let oldCompletions = entries(
+      count: 100,
+      endingAt: beforeSixMisses
+    )
+
+    #expect(streakLength(
+      completedEntries: oldCompletions
+    ) == nil)
+  }
+
+  @Test func titleColorUsesExponentialInterpolation() throws {
+    let start = try #require(
+      HabitStreak.titleGreenOpacity(for: 30)
+    )
+    let midpoint = try #require(
+      HabitStreak.titleGreenOpacity(for: 60)
+    )
+    let end = try #require(
+      HabitStreak.titleGreenOpacity(for: 90)
+    )
+
+    #expect(abs(start - 0.12) < 0.000_001)
+    #expect(midpoint < (start + end) / 2)
+    #expect(abs(end - 0.35) < 0.000_001)
+    #expect(HabitStreak.titleGreenOpacity(for: 29) == nil)
+    #expect(HabitStreak.titleGreenOpacity(for: 120) == end)
+  }
+
+  private func streakLength(
+    completedEntries: [HabitStreak.Entry],
+    hiddenDateKeys: Set<String> = []
+  ) -> Int? {
+    HabitStreak.currentQualifyingLength(
+      entries: completedEntries,
+      hiddenDateKeys: hiddenDateKeys,
+      effectiveTodayKey: todayKey
+    )
+  }
+
+  private func entries(
+    count: Int,
+    endingAt endKey: String? = nil
+  ) -> [HabitStreak.Entry] {
+    var dateKey = endKey ?? todayKey
+    return (0..<count).map { _ in
+      defer {
+        dateKey = DayBoundary.yesterdayKey(from: dateKey)
+      }
+      return HabitStreak.Entry(
+        dateKey: dateKey,
+        isCompleted: true,
+        updatedAt: .distantPast
+      )
+    }
+  }
+
+  private func dateKey(daysBeforeToday: Int) -> String {
+    var dateKey = todayKey
+    for _ in 0..<daysBeforeToday {
+      dateKey = DayBoundary.yesterdayKey(from: dateKey)
+    }
+    return dateKey
+  }
+}
+
 struct DayBoundaryTests {
   @Test func dateKeyReturnsCorrectFormat() {
     let key = DayBoundary.dateKey()

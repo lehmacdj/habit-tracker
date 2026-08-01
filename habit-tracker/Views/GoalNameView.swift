@@ -2,6 +2,7 @@ import SwiftUI
 
 struct GoalNameView: View {
   @Bindable var goal: Goal
+  let streakLength: Int?
   @State private var isEditing = false
   @State private var editText = ""
   @FocusState private var isFocused: Bool
@@ -24,10 +25,7 @@ struct GoalNameView: View {
     .multilineTextAlignment(.center)
     .focused($isFocused)
     .disabled(!isEditing)
-    .foregroundStyle(
-      goal.name.isEmpty && !isEditing
-        ? .secondary : .primary
-    )
+    .foregroundStyle(titleColor)
     .accessibilityIdentifier("goalNameField")
     .onSubmit { commitRename() }
     .onChange(of: editText) { _, newValue in
@@ -53,6 +51,18 @@ struct GoalNameView: View {
         beginEditing()
       }
     }
+  }
+
+  private var titleColor: Color {
+    if goal.name.isEmpty && !isEditing {
+      return .secondary
+    }
+    guard let opacity = HabitStreak.titleGreenOpacity(
+      for: streakLength
+    ) else {
+      return .primary
+    }
+    return .green.opacity(opacity)
   }
 
   @ViewBuilder
