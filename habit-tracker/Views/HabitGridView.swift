@@ -14,6 +14,7 @@ struct HabitGridView: View {
   let onSpawnTomorrow: () -> Void
   let onInsertDate: (String) -> Void
   var onGridTapped: (() -> Void)? = nil
+  var onShowArchive: (() -> Void)? = nil
 
   @State private var newGoalId: UUID? = nil
   @State private var isOverscrollingRight = false
@@ -254,7 +255,7 @@ struct HabitGridView: View {
         streakLength: streakLength(for: goal),
         startEditing: goal.id == newGoalId,
         onArchive: {
-          withAnimation { goal.isDeleted = true }
+          withAnimation { GoalArchive.archive(goal) }
         },
         dragValue: goal.id.uuidString,
         dragPreview: {
@@ -302,6 +303,8 @@ struct HabitGridView: View {
         height: cellSize
       )
 
+      // Tapping adds a goal; long pressing unarchives one,
+      // which lands right here at the bottom of the grid.
       Button {
         addGoal()
       } label: {
@@ -315,6 +318,16 @@ struct HabitGridView: View {
       }
       .buttonStyle(.plain)
       .accessibilityIdentifier("addGoalButton")
+      .contextMenu {
+        Button {
+          onShowArchive?()
+        } label: {
+          Label(
+            "Restore Archived Goal",
+            systemImage: "archivebox"
+          )
+        }
+      }
 
       Color.clear.frame(
         width: cellSize, height: cellSize

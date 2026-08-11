@@ -166,7 +166,133 @@ final class habit_trackerUITests: XCTestCase {
     )
   }
 
+  @MainActor
+  func testArchivedGoalCanBeRestored() throws {
+    addGoalWithName("Retired")
+    addGoalWithName("Kept")
+
+    archiveGoal(named: "Retired")
+    XCTAssertNil(
+      waitUntil { findGoalField(withName: "Retired") },
+      "Archived goal should leave the grid"
+    )
+
+    let goalFieldCount = goalNameFieldCount()
+    longPressAddGoalButton()
+
+    XCTAssertTrue(
+      app.navigationBars["Archived Goals"]
+        .waitForExistence(timeout: defaultTimeout)
+        || app.staticTexts["Archived Goals"]
+          .waitForExistence(timeout: defaultTimeout)
+    )
+    XCTAssertTrue(app.staticTexts["Retired"].exists)
+
+    let restoreButton = app.buttons["restoreGoalButton"]
+      .firstMatch
+    XCTAssertTrue(
+      restoreButton.waitForExistence(timeout: defaultTimeout)
+    )
+    tap(restoreButton)
+
+    let doneButton = app.buttons["Done"].firstMatch
+    if doneButton.waitForExistence(timeout: defaultTimeout) {
+      tap(doneButton)
+    }
+
+    let restored = waitForGoalField(withName: "Retired")
+    XCTAssertNotNil(
+      restored,
+      "Restored goal should return to the grid"
+    )
+    let kept = try XCTUnwrap(findGoalField(withName: "Kept"))
+    XCTAssertLessThan(
+      kept.frame.minY, try XCTUnwrap(restored).frame.minY,
+      "Restored goal should land below the active goals"
+    )
+    XCTAssertEqual(
+      goalNameFieldCount(), goalFieldCount + 1,
+      "Long pressing the plus should unarchive without "
+        + "also adding an empty goal"
+    )
+  }
+
   // MARK: - Helpers
+
+  /// Long presses the plus button and picks the unarchive
+  /// item from the context menu it opens.
+  @MainActor
+  private func longPressAddGoalButton() {
+    let btn = app.buttons["addGoalButton"]
+    XCTAssertTrue(
+      btn.waitForExistence(timeout: defaultTimeout),
+      "Add goal button should exist"
+    )
+    #if os(macOS)
+    btn.rightClick()
+    let restoreItem = app.menuItems["Restore Archived Goal"]
+    XCTAssertTrue(
+      restoreItem.waitForExistence(timeout: defaultTimeout),
+      "Restore menu item should appear on the plus button"
+    )
+    restoreItem.click()
+    #else
+    btn.press(forDuration: 1.2)
+    let restoreItem = app.buttons["Restore Archived Goal"]
+    XCTAssertTrue(
+      restoreItem.waitForExistence(timeout: defaultTimeout),
+      "Restore menu item should appear on the plus button"
+    )
+    restoreItem.tap()
+    #endif
+  }
+
+  /// Number of goal rows currently in the grid.
+  @MainActor
+  private func goalNameFieldCount() -> Int {
+    [app.textFields, app.textViews]
+      .map { $0.matching(identifier: "goalNameField").count }
+      .reduce(0, +)
+  }
+
+  @MainActor
+  private func tap(_ element: XCUIElement) {
+    #if os(macOS)
+    element.click()
+    #else
+    element.tap()
+    #endif
+  }
+
+  @MainActor
+  private func archiveGoal(named name: String) {
+    guard let goalField = waitForGoalField(withName: name)
+    else {
+      XCTFail("Goal name '\(name)' should exist")
+      return
+    }
+
+    let center = goalField.coordinate(
+      withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)
+    )
+    #if os(macOS)
+    center.rightClick()
+    let archiveItem = app.menuItems["Archive Goal"]
+    XCTAssertTrue(
+      archiveItem.waitForExistence(timeout: defaultTimeout),
+      "Archive Goal menu item should appear"
+    )
+    archiveItem.click()
+    #else
+    center.press(forDuration: 1.2)
+    let archiveItem = app.buttons["Archive Goal"]
+    XCTAssertTrue(
+      archiveItem.waitForExistence(timeout: defaultTimeout),
+      "Archive Goal menu item should appear"
+    )
+    archiveItem.tap()
+    #endif
+  }
 
   @MainActor
   private func tapAddGoalButton() {

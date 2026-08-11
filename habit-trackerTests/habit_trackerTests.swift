@@ -636,6 +636,87 @@ struct DayDeletionTests {
   }
 }
 
+struct GoalArchiveTests {
+  @Test @MainActor
+  func archivingHidesGoalFromGrid() {
+    let goal = Goal(name: "Exercise", sortOrder: 0)
+
+    GoalArchive.archive(goal)
+
+    #expect(goal.isDeleted)
+  }
+
+  @Test @MainActor
+  func restoringAppendsGoalBelowActiveGoals() {
+    let first = Goal(name: "Exercise", sortOrder: 0)
+    let second = Goal(name: "Read", sortOrder: 5)
+    let archived = Goal(name: "Meditate", sortOrder: 3)
+    archived.isDeleted = true
+
+    GoalArchive.restore(
+      archived,
+      activeGoals: [first, second]
+    )
+
+    #expect(!archived.isDeleted)
+    #expect(first.sortOrder == 0)
+    #expect(second.sortOrder == 1)
+    #expect(archived.sortOrder == 2)
+  }
+
+  @Test @MainActor
+  func restoringKeepsCompletionHistory() {
+    let goal = Goal(name: "Exercise", sortOrder: 0)
+    let completion = Completion(
+      dateKey: "2026-07-20",
+      goal: goal
+    )
+    goal.completions = [completion]
+    GoalArchive.archive(goal)
+
+    GoalArchive.restore(goal, activeGoals: [])
+
+    #expect(!goal.isDeleted)
+    #expect(goal.sortOrder == 0)
+    #expect(goal.completions?.count == 1)
+    #expect(
+      goal.completions?.first?.dateKey == "2026-07-20"
+    )
+  }
+
+  @Test @MainActor
+  func restoringSuccessiveGoalsDoesNotCollide() {
+    let active = Goal(name: "Exercise", sortOrder: 0)
+    let first = Goal(name: "Read", sortOrder: 0)
+    let second = Goal(name: "Meditate", sortOrder: 0)
+    first.isDeleted = true
+    second.isDeleted = true
+
+    GoalArchive.restore(first, activeGoals: [active])
+    GoalArchive.restore(
+      second,
+      activeGoals: [active, first]
+    )
+
+    #expect(
+      [active, first, second].map(\.sortOrder) == [0, 1, 2]
+    )
+  }
+
+  @Test @MainActor
+  func displayOrderSortsNamedGoalsAheadOfUntitled() {
+    let read = Goal(name: "read", sortOrder: 0)
+    let exercise = Goal(name: "Exercise", sortOrder: 1)
+    let untitled = Goal(name: "", sortOrder: 2)
+
+    let ordered = GoalArchive.displayOrder(
+      archived: [untitled, read, exercise]
+    )
+
+    #expect(ordered.map(\.name) == ["Exercise", "read", ""])
+  }
+}
+
 struct MigrationStoreBackupTests {
   @Test
   func snapshotCopiesStoreFamilyOnlyOnce() throws {

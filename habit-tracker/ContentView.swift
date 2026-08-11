@@ -31,6 +31,7 @@ struct ContentView: View {
   @State private var selectedDateKey: String =
     DayBoundary.dateKey()
   @State private var isShowingExport = false
+  @State private var isShowingArchive = false
   @FocusState private var isIntentionFocused: Bool
 
   var body: some View {
@@ -65,6 +66,10 @@ struct ContentView: View {
           },
           onGridTapped: {
             isIntentionFocused = false
+          },
+          onShowArchive: {
+            isIntentionFocused = false
+            isShowingArchive = true
           }
         )
       }
@@ -99,6 +104,9 @@ struct ContentView: View {
     }
     .sheet(isPresented: $isShowingExport) {
       ExportDataView()
+    }
+    .sheet(isPresented: $isShowingArchive) {
+      ArchivedGoalsView()
     }
   }
 
