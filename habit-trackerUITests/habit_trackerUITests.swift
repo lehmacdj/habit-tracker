@@ -23,9 +23,7 @@ final class habit_trackerUITests: XCTestCase {
       "Goals header should appear on launch"
     )
 
-    let df = DateFormatter()
-    df.dateFormat = "M/d"
-    let todayStr = df.string(from: Date())
+    let todayStr = DayBoundaryKey.todayDisplay()
     #if os(macOS)
     let todayHeader = app.buttons[
       "dateHeader-\(DayBoundaryKey.today())"
@@ -437,8 +435,19 @@ final class habit_trackerUITests: XCTestCase {
 
 private enum DayBoundaryKey {
   static func today() -> String {
+    formatted(as: "yyyy-MM-dd")
+  }
+
+  /// The logical day as the date header renders it, e.g. "8/10".
+  static func todayDisplay() -> String {
+    formatted(as: "M/d")
+  }
+
+  /// Applies the app's 4:00 AM logical-day boundary, so tests
+  /// run between midnight and 4:00 AM expect yesterday's date.
+  private static func formatted(as format: String) -> String {
     let formatter = DateFormatter()
-    formatter.dateFormat = "yyyy-MM-dd"
+    formatter.dateFormat = format
     let adjustedDate = Date().addingTimeInterval(-4 * 60 * 60)
     return formatter.string(from: adjustedDate)
   }
