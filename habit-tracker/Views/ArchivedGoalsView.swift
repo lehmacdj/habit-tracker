@@ -3,18 +3,19 @@ import SwiftUI
 
 struct ArchivedGoalsView: View {
   @Environment(\.dismiss) private var dismiss
+  @Environment(\.modelContext) private var modelContext
 
   @Query(sort: \Goal.sortOrder)
   private var allGoals: [Goal]
 
   private var archivedGoals: [Goal] {
     GoalArchive.displayOrder(
-      archived: allGoals.filter(\.isDeleted)
+      archived: allGoals.filter(\.isArchived)
     )
   }
 
   private var activeGoals: [Goal] {
-    allGoals.filter { !$0.isDeleted }
+    allGoals.filter { !$0.isArchived }
   }
 
   var body: some View {
@@ -113,8 +114,18 @@ struct ArchivedGoalsView: View {
   }
 
   private func restore(_ goal: Goal) {
-    withAnimation {
-      GoalArchive.restore(goal, activeGoals: activeGoals)
+    do {
+      try withAnimation {
+        try GoalArchive.restore(
+          goal,
+          activeGoals: activeGoals,
+          in: modelContext
+        )
+      }
+    } catch {
+      assertionFailure(
+        "Could not restore goal: \(error)"
+      )
     }
   }
 }
@@ -129,9 +140,9 @@ struct ArchivedGoalsView: View {
   let ctx = container.mainContext
   let active = Goal(name: "Exercise", sortOrder: 0)
   let archived = Goal(name: "Read", sortOrder: 1)
-  archived.isDeleted = true
+  archived.archivedAt = Date()
   let untitled = Goal(name: "", sortOrder: 2)
-  untitled.isDeleted = true
+  untitled.archivedAt = Date()
   ctx.insert(active)
   ctx.insert(archived)
   ctx.insert(untitled)

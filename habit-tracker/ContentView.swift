@@ -6,7 +6,9 @@ struct ContentView: View {
   @Environment(\.scenePhase) private var scenePhase
 
   @Query(
-    filter: #Predicate<Goal> { !$0.isDeleted },
+    filter: #Predicate<Goal> {
+      $0.archivedAt == nil && !$0.isDeleted
+    },
     sort: \Goal.sortOrder
   )
   private var goals: [Goal]

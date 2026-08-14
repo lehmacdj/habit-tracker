@@ -396,10 +396,10 @@ struct DayModelTests {
 
     try autoreleasepool {
       let schema = Schema(
-        versionedSchema: HabitSchemaV3.self
+        versionedSchema: HabitSchemaV4.self
       )
       let configuration = ModelConfiguration(
-        "MigrationTestV3",
+        "MigrationTestV4",
         schema: schema,
         url: storeURL,
         cloudKitDatabase: .none
@@ -424,7 +424,7 @@ struct DayModelTests {
       #expect(days.first?.intentionUpdatedAt != nil)
       #expect(days.first?.isHidden == true)
       #expect(goals.map(\.name) == ["Exercise"])
-      #expect(goals.first?.isDeleted == true)
+      #expect(goals.first?.isArchived == true)
       #expect(
         goals.first?.nameHistoryJSON
           == """
@@ -638,45 +638,64 @@ struct DayDeletionTests {
 
 struct GoalArchiveTests {
   @Test @MainActor
-  func archivingHidesGoalFromGrid() {
+  func archivingPersistsWithoutAutosave() throws {
     let goal = Goal(name: "Exercise", sortOrder: 0)
+    let container = try makeContainer(goals: [goal])
+    let context = container.mainContext
 
-    GoalArchive.archive(goal)
+    try GoalArchive.archive(goal, in: context)
 
-    #expect(goal.isDeleted)
+    #expect(goal.isArchived)
+    #expect(!context.hasChanges)
+
+    let verificationContext = ModelContext(container)
+    let persistedGoals = try verificationContext.fetch(
+      FetchDescriptor<Goal>()
+    )
+    #expect(persistedGoals.first?.isArchived == true)
   }
 
   @Test @MainActor
-  func restoringAppendsGoalBelowActiveGoals() {
+  func restoringAppendsGoalBelowActiveGoals() throws {
     let first = Goal(name: "Exercise", sortOrder: 0)
     let second = Goal(name: "Read", sortOrder: 5)
     let archived = Goal(name: "Meditate", sortOrder: 3)
-    archived.isDeleted = true
-
-    GoalArchive.restore(
-      archived,
-      activeGoals: [first, second]
+    archived.archivedAt = Date()
+    let container = try makeContainer(
+      goals: [first, second, archived]
     )
 
-    #expect(!archived.isDeleted)
+    try GoalArchive.restore(
+      archived,
+      activeGoals: [first, second],
+      in: container.mainContext
+    )
+
+    #expect(!archived.isArchived)
     #expect(first.sortOrder == 0)
     #expect(second.sortOrder == 1)
     #expect(archived.sortOrder == 2)
   }
 
   @Test @MainActor
-  func restoringKeepsCompletionHistory() {
+  func restoringKeepsCompletionHistory() throws {
     let goal = Goal(name: "Exercise", sortOrder: 0)
     let completion = Completion(
       dateKey: "2026-07-20",
       goal: goal
     )
     goal.completions = [completion]
-    GoalArchive.archive(goal)
+    let container = try makeContainer(goals: [goal])
+    let context = container.mainContext
+    try GoalArchive.archive(goal, in: context)
 
-    GoalArchive.restore(goal, activeGoals: [])
+    try GoalArchive.restore(
+      goal,
+      activeGoals: [],
+      in: context
+    )
 
-    #expect(!goal.isDeleted)
+    #expect(!goal.isArchived)
     #expect(goal.sortOrder == 0)
     #expect(goal.completions?.count == 1)
     #expect(
@@ -685,17 +704,26 @@ struct GoalArchiveTests {
   }
 
   @Test @MainActor
-  func restoringSuccessiveGoalsDoesNotCollide() {
+  func restoringSuccessiveGoalsDoesNotCollide() throws {
     let active = Goal(name: "Exercise", sortOrder: 0)
     let first = Goal(name: "Read", sortOrder: 0)
     let second = Goal(name: "Meditate", sortOrder: 0)
-    first.isDeleted = true
-    second.isDeleted = true
+    first.archivedAt = Date()
+    second.archivedAt = Date()
+    let container = try makeContainer(
+      goals: [active, first, second]
+    )
+    let context = container.mainContext
 
-    GoalArchive.restore(first, activeGoals: [active])
-    GoalArchive.restore(
+    try GoalArchive.restore(
+      first,
+      activeGoals: [active],
+      in: context
+    )
+    try GoalArchive.restore(
       second,
-      activeGoals: [active, first]
+      activeGoals: [active, first],
+      in: context
     )
 
     #expect(
@@ -714,6 +742,27 @@ struct GoalArchiveTests {
     )
 
     #expect(ordered.map(\.name) == ["Exercise", "read", ""])
+  }
+
+  @MainActor
+  private func makeContainer(
+    goals: [Goal]
+  ) throws -> ModelContainer {
+    let configuration = ModelConfiguration(
+      isStoredInMemoryOnly: true,
+      cloudKitDatabase: .none
+    )
+    let container = try ModelContainer(
+      for: Goal.self, Completion.self, Day.self,
+      configurations: configuration
+    )
+    let context = container.mainContext
+    context.autosaveEnabled = false
+    for goal in goals {
+      context.insert(goal)
+    }
+    try context.save()
+    return container
   }
 }
 
@@ -755,7 +804,7 @@ struct MigrationStoreBackupTests {
     let createdSnapshot =
       try MigrationStoreBackup.createIfNeeded(
         storeURL: storeURL,
-        modelTypes: HabitSchemaV3.models,
+        modelTypes: HabitSchemaV4.models,
         backupRootURL: backupDirectory
       )
     let snapshot = try #require(createdSnapshot)
@@ -778,7 +827,7 @@ struct MigrationStoreBackupTests {
     let existingSnapshot =
       try MigrationStoreBackup.createIfNeeded(
       storeURL: storeURL,
-      modelTypes: HabitSchemaV3.models,
+      modelTypes: HabitSchemaV4.models,
       backupRootURL: backupDirectory
     )
     let secondSnapshot = try #require(existingSnapshot)

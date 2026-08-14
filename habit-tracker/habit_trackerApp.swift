@@ -10,7 +10,7 @@ struct habit_trackerApp: App {
     "iCloud.is.devin.habit-tracker"
 
   private static let modelTypes =
-    HabitSchemaV3.models
+    HabitSchemaV4.models
 
   init() {
     #if os(iOS)
@@ -22,7 +22,7 @@ struct habit_trackerApp: App {
 
   var sharedModelContainer: ModelContainer = {
     let schema = Schema(
-      versionedSchema: HabitSchemaV3.self
+      versionedSchema: HabitSchemaV4.self
     )
 
     let config = ModelConfiguration(

@@ -180,6 +180,73 @@ enum HabitSchemaV3: VersionedSchema {
     Completion.self,
     Day.self,
   ]
+
+  @Model
+  final class Goal {
+    var id: UUID = UUID()
+    var name: String = ""
+    var sortOrder: Int = 0
+    var createdAt: Date = Date()
+    var isDeleted: Bool = false
+    var nameHistoryJSON: String = "[]"
+
+    @Relationship(
+      deleteRule: .cascade,
+      inverse: \Completion.goal
+    )
+    var completions: [Completion]? = []
+
+    init(name: String = "", sortOrder: Int = 0) {
+      self.id = UUID()
+      self.name = name
+      self.sortOrder = sortOrder
+      self.createdAt = Date()
+    }
+  }
+
+  @Model
+  final class Completion {
+    var id: UUID = UUID()
+    var dateKey: String = ""
+    var isCompleted: Bool = true
+    var updatedAt: Date = Date()
+    var goal: Goal?
+
+    init(dateKey: String, goal: Goal) {
+      self.id = UUID()
+      self.dateKey = dateKey
+      self.isCompleted = true
+      self.updatedAt = Date()
+      self.goal = goal
+    }
+  }
+
+  @Model
+  final class Day {
+    var id: UUID = UUID()
+    var dateKey: String = ""
+    var isHidden: Bool = false
+    var createdAt: Date = Date()
+    var intentionText: String = ""
+    var intentionUpdatedAt: Date?
+
+    init(dateKey: String) {
+      self.id = UUID()
+      self.dateKey = dateKey
+      self.createdAt = Date()
+    }
+  }
+}
+
+enum HabitSchemaV4: VersionedSchema {
+  static let versionIdentifier =
+    Schema.Version(4, 0, 0)
+
+  static let models: [any PersistentModel.Type] = [
+    Goal.self,
+    Completion.self,
+    Day.self,
+  ]
 }
 
 enum HabitSchemaMigrationPlan: SchemaMigrationPlan {
@@ -187,6 +254,7 @@ enum HabitSchemaMigrationPlan: SchemaMigrationPlan {
     HabitSchemaV1.self,
     HabitSchemaV2.self,
     HabitSchemaV3.self,
+    HabitSchemaV4.self,
   ]
 
   static let stages: [MigrationStage] = [
@@ -230,6 +298,10 @@ enum HabitSchemaMigrationPlan: SchemaMigrationPlan {
     .lightweight(
       fromVersion: HabitSchemaV2.self,
       toVersion: HabitSchemaV3.self
+    ),
+    .lightweight(
+      fromVersion: HabitSchemaV3.self,
+      toVersion: HabitSchemaV4.self
     ),
   ]
 }

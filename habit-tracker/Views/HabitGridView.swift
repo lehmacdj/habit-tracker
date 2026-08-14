@@ -255,7 +255,7 @@ struct HabitGridView: View {
         streakLength: streakLength(for: goal),
         startEditing: goal.id == newGoalId,
         onArchive: {
-          withAnimation { GoalArchive.archive(goal) }
+          archive(goal)
         },
         dragValue: goal.id.uuidString,
         dragPreview: {
@@ -380,6 +380,21 @@ struct HabitGridView: View {
     newGoalId = goal.id
     DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
       if newGoalId == goal.id { newGoalId = nil }
+    }
+  }
+
+  private func archive(_ goal: Goal) {
+    do {
+      try withAnimation {
+        try GoalArchive.archive(
+          goal,
+          in: modelContext
+        )
+      }
+    } catch {
+      assertionFailure(
+        "Could not archive goal: \(error)"
+      )
     }
   }
 

@@ -12,7 +12,11 @@ final class Goal {
   var name: String = ""
   var sortOrder: Int = 0
   var createdAt: Date = Date()
+  /// Retained for compatibility with existing stores and CloudKit
+  /// records. New archive changes use `archivedAt` because
+  /// `isDeleted` conflicts with SwiftData's model lifecycle state.
   var isDeleted: Bool = false
+  var archivedAt: Date?
   var nameHistoryJSON: String = "[]"
 
   @Relationship(deleteRule: .cascade, inverse: \Completion.goal)
@@ -23,6 +27,10 @@ final class Goal {
     self.name = name
     self.sortOrder = sortOrder
     self.createdAt = Date()
+  }
+
+  var isArchived: Bool {
+    archivedAt != nil || isDeleted
   }
 
   var nameHistory: [NameHistoryEntry] {

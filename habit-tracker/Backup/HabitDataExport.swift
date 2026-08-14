@@ -129,7 +129,7 @@ private extension HabitDataExport.GoalRecord {
     name = goal.name
     sortOrder = goal.sortOrder
     createdAt = goal.createdAt
-    isDeleted = goal.isDeleted
+    isDeleted = goal.isArchived
     nameHistoryJSON = goal.nameHistoryJSON
     nameHistory = goal.nameHistory.map {
       HabitDataExport.NameHistoryRecord(
