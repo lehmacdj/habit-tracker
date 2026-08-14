@@ -151,9 +151,11 @@ struct ContentView: View {
 
   /// Ensures Day records exist for today and the previous day.
   private func ensureTodayExists() {
-    let todayKey = DayBoundary.dateKey()
+    let now = Date.now
+    let todayKey = DayBoundary.dateKey(for: now)
     let restoredTodayKey = DayBoundary.effectiveTodayKey(
-      calendarTodayKey: todayKey,
+      logicalTodayKey: todayKey,
+      calendarTodayKey: DayBoundary.calendarDateKey(for: now),
       visibleDateKeys: allDays
         .filter { !$0.isHidden }
         .map(\.dateKey)

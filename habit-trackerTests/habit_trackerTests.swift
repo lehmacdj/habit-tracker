@@ -226,6 +226,7 @@ struct DayBoundaryTests {
 
   @Test func effectiveTodayRestoresVisibleFutureDay() {
     let effective = DayBoundary.effectiveTodayKey(
+      logicalTodayKey: "2026-03-17",
       calendarTodayKey: "2026-03-17",
       visibleDateKeys: [
         "2026-03-16",
@@ -238,6 +239,7 @@ struct DayBoundaryTests {
 
   @Test func effectiveTodayIgnoresPastDays() {
     let effective = DayBoundary.effectiveTodayKey(
+      logicalTodayKey: "2026-03-17",
       calendarTodayKey: "2026-03-17",
       visibleDateKeys: [
         "2026-03-15",
@@ -249,6 +251,7 @@ struct DayBoundaryTests {
 
   @Test func effectiveTodayUsesLatestVisibleFutureDay() {
     let effective = DayBoundary.effectiveTodayKey(
+      logicalTodayKey: "2026-03-17",
       calendarTodayKey: "2026-03-17",
       visibleDateKeys: [
         "2026-03-19",
@@ -256,6 +259,18 @@ struct DayBoundaryTests {
       ]
     )
     #expect(effective == "2026-03-19")
+  }
+
+  @Test func effectiveTodayIgnoresNewDateBeforeBoundary() {
+    let effective = DayBoundary.effectiveTodayKey(
+      logicalTodayKey: "2026-03-17",
+      calendarTodayKey: "2026-03-18",
+      visibleDateKeys: [
+        "2026-03-17",
+        "2026-03-18",
+      ]
+    )
+    #expect(effective == "2026-03-17")
   }
 }
 
