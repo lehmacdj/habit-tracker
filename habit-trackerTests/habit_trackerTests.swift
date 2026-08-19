@@ -1,3 +1,4 @@
+import CloudKit
 import CoreData
 import Foundation
 import SwiftData
@@ -923,5 +924,34 @@ struct CloudSyncMonitorTests {
     #expect(details.contains("NSCocoaErrorDomain (134400)"))
     #expect(details.contains("CKErrorDomain (4)"))
     #expect(details.contains("Network unavailable"))
+  }
+
+  @Test
+  func errorFormatterIncludesBridgedPartialErrors() {
+    let recordID = CKRecord.ID(recordName: "more-recent-ipad-data")
+    let rejectedRecord = NSError(
+      domain: CKError.errorDomain,
+      code: CKError.serverRejectedRequest.rawValue,
+      userInfo: [
+        NSLocalizedDescriptionKey: "Field is not in the production schema",
+      ]
+    )
+    let partialErrors = NSDictionary(
+      object: rejectedRecord,
+      forKey: recordID
+    )
+    let outer = NSError(
+      domain: CKError.errorDomain,
+      code: CKError.partialFailure.rawValue,
+      userInfo: [
+        CKPartialErrorsByItemIDKey: partialErrors,
+      ]
+    )
+
+    let details = CloudSyncErrorFormatter.details(for: outer)
+
+    #expect(details.contains("more-recent-ipad-data"))
+    #expect(details.contains("CKErrorDomain (15)"))
+    #expect(details.contains("Field is not in the production schema"))
   }
 }

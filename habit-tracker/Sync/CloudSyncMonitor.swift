@@ -317,8 +317,8 @@ enum CloudSyncErrorFormatter {
     }
     if let detailed = error.userInfo[
       NSDetailedErrorsKey
-    ] as? [NSError] {
-      for child in detailed {
+    ] as? NSArray {
+      for case let child as NSError in detailed {
         append(
           child,
           to: &lines,
@@ -327,21 +327,31 @@ enum CloudSyncErrorFormatter {
         )
       }
     }
-    if let partial = error.userInfo[
-      CKPartialErrorsByItemIDKey
-    ] as? [AnyHashable: Error] {
-      for (item, child) in partial.sorted(
-        by: { String(describing: $0.key)
-          < String(describing: $1.key) }
-      ) {
-        lines.append("\(childIndentation)Item: \(item)")
-        append(
-          child as NSError,
-          to: &lines,
-          indentation: childIndentation + "  ",
-          depth: depth + 1
-        )
-      }
+    for (item, child) in partialErrors(in: error) {
+      lines.append("\(childIndentation)Item: \(item)")
+      append(
+        child,
+        to: &lines,
+        indentation: childIndentation + "  ",
+        depth: depth + 1
+      )
     }
+  }
+
+  private static func partialErrors(
+    in error: NSError
+  ) -> [(item: String, error: NSError)] {
+    guard let partial = error.userInfo[
+      CKPartialErrorsByItemIDKey
+    ] as? NSDictionary else {
+      return []
+    }
+
+    return partial.allKeys.compactMap { key in
+      guard let child = partial.object(forKey: key) as? NSError else {
+        return nil
+      }
+      return (String(describing: key), child)
+    }.sorted { $0.item < $1.item }
   }
 }
