@@ -34,6 +34,9 @@ struct ContentView: View {
     DayBoundary.dateKey()
   @State private var isShowingExport = false
   @State private var isShowingArchive = false
+  @State private var isShowingSyncStatus = false
+  @ObservedObject private var cloudSyncMonitor =
+    CloudSyncMonitor.shared
   @FocusState private var isIntentionFocused: Bool
 
   var body: some View {
@@ -76,26 +79,56 @@ struct ContentView: View {
         )
       }
 
-      Button {
-        isIntentionFocused = false
-        isShowingExport = true
-      } label: {
-        Image(systemName: "square.and.arrow.up")
+      HStack(spacing: 0) {
+        Button {
+          isIntentionFocused = false
+          isShowingSyncStatus = true
+        } label: {
+          Image(
+            systemName: cloudSyncMonitor.needsAttention
+              ? "exclamationmark.icloud.fill"
+              : "icloud"
+          )
           .font(.body)
+          .foregroundStyle(
+            cloudSyncMonitor.needsAttention
+              ? Color.red
+              : Color.primary
+          )
           .padding(12)
           .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(
+          cloudSyncMonitor.needsAttention
+            ? "Cloud Sync Needs Attention"
+            : "Cloud Sync Status"
+        )
+        .accessibilityIdentifier("cloudSyncStatusButton")
+
+        Button {
+          isIntentionFocused = false
+          isShowingExport = true
+        } label: {
+          Image(systemName: "square.and.arrow.up")
+            .font(.body)
+            .padding(12)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Export Habit Data")
+        .accessibilityIdentifier("exportHabitDataButton")
       }
-      .buttonStyle(.plain)
-      .accessibilityLabel("Export Habit Data")
-      .accessibilityIdentifier("exportHabitDataButton")
     }
     .onAppear {
+      cloudSyncMonitor.refreshAccountStatus()
       ensureTodayExists()
       syncWidgetSummary()
       saveWeeklyBackupIfNeeded()
     }
     .onChange(of: scenePhase) { _, newPhase in
       if newPhase == .active {
+        cloudSyncMonitor.refreshAccountStatus()
         ensureTodayExists()
         syncWidgetSummary()
         saveWeeklyBackupIfNeeded()
@@ -109,6 +142,9 @@ struct ContentView: View {
     }
     .sheet(isPresented: $isShowingArchive) {
       ArchivedGoalsView()
+    }
+    .sheet(isPresented: $isShowingSyncStatus) {
+      CloudSyncStatusView(monitor: cloudSyncMonitor)
     }
   }
 

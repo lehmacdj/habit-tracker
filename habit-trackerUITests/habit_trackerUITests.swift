@@ -165,6 +165,32 @@ final class habit_trackerUITests: XCTestCase {
   }
 
   @MainActor
+  func testCloudSyncStatusSheetOpens() throws {
+    let syncButton = app.buttons["cloudSyncStatusButton"]
+    XCTAssertTrue(
+      syncButton.waitForExistence(timeout: defaultTimeout)
+    )
+    #if os(macOS)
+    syncButton.click()
+    #else
+    syncButton.tap()
+    #endif
+
+    XCTAssertTrue(
+      app.navigationBars["Cloud Sync"]
+        .waitForExistence(timeout: defaultTimeout)
+        || app.staticTexts["Cloud Sync"]
+          .waitForExistence(timeout: defaultTimeout)
+    )
+    XCTAssertTrue(
+      app.staticTexts["Recent CloudKit Activity"].exists
+    )
+    XCTAssertTrue(
+      app.buttons["Check iCloud Account Again"].exists
+    )
+  }
+
+  @MainActor
   func testArchivedGoalCanBeRestored() throws {
     addGoalWithName("Retired")
     addGoalWithName("Kept")

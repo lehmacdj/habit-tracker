@@ -6,6 +6,10 @@ import UIKit
 
 @main
 struct habit_trackerApp: App {
+  // Start listening before the model container is created so the
+  // initial CloudKit setup event is visible in the diagnostics UI.
+  private let cloudSyncMonitor = CloudSyncMonitor.shared
+
   private static let iCloudContainerIdentifier =
     "iCloud.is.devin.habit-tracker"
 

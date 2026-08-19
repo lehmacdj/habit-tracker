@@ -857,3 +857,71 @@ struct MigrationStoreBackupTests {
     )
   }
 }
+
+struct CloudSyncMonitorTests {
+  @Test @MainActor
+  func latestSuccessfulEventClearsEarlierFailure() throws {
+    let suiteName = "CloudSyncMonitorTests-\(UUID().uuidString)"
+    let defaults = try #require(
+      UserDefaults(suiteName: suiteName)
+    )
+    defer {
+      defaults.removePersistentDomain(forName: suiteName)
+    }
+    let now = Date.now
+    let events = [
+      CloudSyncEventRecord(
+        id: UUID(),
+        kind: .importData,
+        startedAt: now,
+        endedAt: now,
+        succeeded: true,
+        errorDetails: nil
+      ),
+      CloudSyncEventRecord(
+        id: UUID(),
+        kind: .importData,
+        startedAt: now.addingTimeInterval(-60),
+        endedAt: now.addingTimeInterval(-59),
+        succeeded: false,
+        errorDetails: "Network unavailable"
+      ),
+    ]
+    defaults.set(
+      try JSONEncoder().encode(events),
+      forKey: "cloudSync.recentEvents.v1"
+    )
+
+    let monitor = CloudSyncMonitor(
+      defaults: defaults,
+      observeEvents: false
+    )
+
+    #expect(!monitor.needsAttention)
+  }
+
+  @Test
+  func errorFormatterIncludesUnderlyingError() {
+    let underlying = NSError(
+      domain: "CKErrorDomain",
+      code: 4,
+      userInfo: [
+        NSLocalizedDescriptionKey: "Network unavailable",
+      ]
+    )
+    let outer = NSError(
+      domain: "NSCocoaErrorDomain",
+      code: 134400,
+      userInfo: [
+        NSLocalizedDescriptionKey: "Cloud import failed",
+        NSUnderlyingErrorKey: underlying,
+      ]
+    )
+
+    let details = CloudSyncErrorFormatter.details(for: outer)
+
+    #expect(details.contains("NSCocoaErrorDomain (134400)"))
+    #expect(details.contains("CKErrorDomain (4)"))
+    #expect(details.contains("Network unavailable"))
+  }
+}
