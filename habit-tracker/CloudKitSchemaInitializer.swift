@@ -4,20 +4,21 @@ import OSLog
 import SwiftData
 
 enum CloudKitSchemaInitializer {
-  private static let logger = Logger(
+  private nonisolated static let logger = Logger(
     subsystem: Bundle.main.bundleIdentifier
       ?? "is.devin.habit-tracker",
     category: "CloudKitSchema"
   )
 
-  static func initializeIfNeeded(
+  @discardableResult
+  nonisolated static func initializeIfNeeded(
     modelTypes: [any PersistentModel.Type],
     containerIdentifier: String
-  ) {
+  ) -> Bool {
     guard ProcessInfo.processInfo.environment[
       "XCODE_RUNNING_FOR_PREVIEWS"
     ] != "1" else {
-      return
+      return false
     }
 
     guard let managedObjectModel =
@@ -28,7 +29,7 @@ enum CloudKitSchemaInitializer {
       logger.error(
         "Could not generate the CloudKit managed object model"
       )
-      return
+      return false
     }
 
     let fingerprint = schemaFingerprint(
@@ -45,7 +46,7 @@ enum CloudKitSchemaInitializer {
         forKey: fingerprintKey
       ) != fingerprint
     else {
-      return
+      return true
     }
 
     let initialized: Bool
@@ -123,11 +124,11 @@ enum CloudKitSchemaInitializer {
         \(error.localizedDescription)
         """
       )
-      return
+      return false
     }
 
     guard initialized else {
-      return
+      return false
     }
 
     UserDefaults.standard.set(
@@ -137,9 +138,10 @@ enum CloudKitSchemaInitializer {
     logger.notice(
       "Initialized development schema for \(containerIdentifier)"
     )
+    return true
   }
 
-  private static func schemaFingerprint(
+  private nonisolated static func schemaFingerprint(
     for model: NSManagedObjectModel
   ) -> String {
     model.entityVersionHashesByName

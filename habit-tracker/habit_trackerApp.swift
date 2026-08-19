@@ -22,37 +22,48 @@ struct habit_trackerApp: App {
       UIView.setAnimationsEnabled(false)
     }
     #endif
+
+    #if DEBUG
+    if !Self.isTesting {
+      DispatchQueue.global(qos: .userInitiated).async {
+        let initialized = CloudKitSchemaInitializer.initializeIfNeeded(
+          modelTypes: Self.modelTypes,
+          containerIdentifier: Self.iCloudContainerIdentifier
+        )
+        if Self.isSchemaInitializationRun {
+          print(
+            initialized
+              ? "CloudKit Development schema initialized"
+              : "CloudKit Development schema initialization failed"
+          )
+        }
+      }
+    }
+    #endif
   }
 
   var sharedModelContainer: ModelContainer = {
     let schema = Schema(
       versionedSchema: HabitSchemaV4.self
     )
+    let usesEphemeralStore = Self.isTesting
+      || Self.isSchemaInitializationRun
 
     let config = ModelConfiguration(
       schema: schema,
-      isStoredInMemoryOnly: Self.isTesting,
-      cloudKitDatabase: Self.isTesting
+      isStoredInMemoryOnly: usesEphemeralStore,
+      cloudKitDatabase: usesEphemeralStore
         ? .none
         : .private(iCloudContainerIdentifier)
     )
 
     do {
-      if !Self.isTesting {
+      if !usesEphemeralStore {
         try MigrationStoreBackup.createIfNeeded(
           storeURL: config.url,
           modelTypes: Self.modelTypes
         )
       }
-
-      #if DEBUG
-      if !Self.isTesting {
-        CloudKitSchemaInitializer.initializeIfNeeded(
-          modelTypes: Self.modelTypes,
-          containerIdentifier: iCloudContainerIdentifier
-        )
-      }
-      #endif
 
       return try ModelContainer(
         for: schema,
@@ -71,6 +82,12 @@ struct habit_trackerApp: App {
     return processInfo.arguments.contains("--uitesting")
       || processInfo.environment["XCTestBundlePath"] != nil
       || processInfo.environment["XCTestConfigurationFilePath"] != nil
+  }
+
+  private static var isSchemaInitializationRun: Bool {
+    ProcessInfo.processInfo.arguments.contains(
+      "--initialize-cloudkit-schema"
+    )
   }
 
   var body: some Scene {
