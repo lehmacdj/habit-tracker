@@ -47,7 +47,7 @@ final class habit_trackerUITests: XCTestCase {
       findIntentionField(),
       "Intention input field should exist"
     )
-    field.tap()
+    tap(field)
     field.typeText("ship the habit tracker")
 
     let value = field.value as? String ?? ""
@@ -79,7 +79,9 @@ final class habit_trackerUITests: XCTestCase {
 
     // Double-tap to enter edit mode
     #if os(macOS)
-    goalField.doubleClick()
+    goalField.coordinate(
+      withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)
+    ).doubleClick()
     #else
     goalField.doubleTap()
     #endif
@@ -129,7 +131,7 @@ final class habit_trackerUITests: XCTestCase {
       goalsHeader.waitForExistence(timeout: defaultTimeout)
     )
 
-    app.swipeUp()
+    scrollGridUp()
 
     XCTAssertNotNil(
       waitUntil { goalsHeader.isHittable ? goalsHeader : nil },
@@ -326,10 +328,25 @@ final class habit_trackerUITests: XCTestCase {
       "Add goal button should exist"
     )
     #if os(macOS)
+    scrollGridUp()
+    XCTAssertNotNil(
+      waitUntil { btn.isHittable ? btn : nil },
+      "Add goal button should be hittable"
+    )
     btn.click()
     #else
     btn.tap()
     #endif
+  }
+
+  @MainActor
+  private func scrollGridUp() {
+    let scrollView = app.scrollViews.firstMatch
+    XCTAssertTrue(
+      scrollView.waitForExistence(timeout: defaultTimeout),
+      "Habit grid should be scrollable"
+    )
+    scrollView.swipeUp()
   }
 
   /// Finds the currently editing (enabled/focused) goal
@@ -398,16 +415,17 @@ final class habit_trackerUITests: XCTestCase {
       return
     }
 
-    let goalFrame = goalField.frame
-    let tapPoint = CGPoint(
-      x: goalFrame.maxX + 40,
-      y: goalFrame.midY
+    let cellCenter = goalField.coordinate(
+      withNormalizedOffset: CGVector(dx: 1, dy: 0.5)
     )
-    app.coordinate(withNormalizedOffset: .zero)
-      .withOffset(
-        CGVector(dx: tapPoint.x, dy: tapPoint.y)
-      )
-      .tap()
+    let completionCell = cellCenter.withOffset(
+      CGVector(dx: 40, dy: 0)
+    )
+    #if os(macOS)
+    completionCell.click()
+    #else
+    completionCell.tap()
+    #endif
   }
 
   @MainActor
@@ -431,9 +449,11 @@ final class habit_trackerUITests: XCTestCase {
   private func addGoalWithName(_ name: String) {
     tapAddGoalButton()
 
-    if let field = findEditingGoalField() {
-      field.typeText("\(name)\n")
+    guard let field = findEditingGoalField() else {
+      XCTFail("New goal field should enter edit mode")
+      return
     }
+    field.typeText("\(name)\n")
 
     XCTAssertNotNil(
       waitForGoalField(withName: name),
