@@ -25,7 +25,9 @@ struct GoalNameView: View {
     .multilineTextAlignment(.center)
     .focused($isFocused)
     .disabled(!isEditing)
-    .foregroundStyle(titleColor)
+    .foregroundStyle(goal.name.isEmpty && !isEditing
+      ? Color.secondary
+      : Color.primary)
     .accessibilityIdentifier("goalNameField")
     .onSubmit { commitRename() }
     .onChange(of: editText) { _, newValue in
@@ -46,6 +48,7 @@ struct GoalNameView: View {
     }
     .frame(minHeight: 48)
     .frame(maxWidth: .infinity)
+    .background(titleBackgroundColor)
     .onAppear {
       if startEditing {
         beginEditing()
@@ -53,14 +56,11 @@ struct GoalNameView: View {
     }
   }
 
-  private var titleColor: Color {
-    if goal.name.isEmpty && !isEditing {
-      return .secondary
-    }
-    guard let opacity = HabitStreak.titleGreenOpacity(
+  private var titleBackgroundColor: Color {
+    guard let opacity = HabitStreak.titleBackgroundGreenOpacity(
       for: streakLength
     ) else {
-      return .primary
+      return .clear
     }
     return .green.opacity(opacity)
   }

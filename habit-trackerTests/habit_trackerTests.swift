@@ -2,7 +2,13 @@ import CloudKit
 import CoreData
 import Foundation
 import SwiftData
+import SwiftUI
 import Testing
+#if canImport(AppKit)
+import AppKit
+#elseif canImport(UIKit)
+import UIKit
+#endif
 @testable import habit_tracker
 
 struct HabitStreakTests {
@@ -107,22 +113,131 @@ struct HabitStreakTests {
     ) == nil)
   }
 
-  @Test func titleColorUsesExponentialInterpolation() throws {
+  @Test func titleBackgroundUsesExponentialInterpolation() throws {
     let start = try #require(
-      HabitStreak.titleGreenOpacity(for: 30)
+      HabitStreak.titleBackgroundGreenOpacity(for: 30)
     )
     let midpoint = try #require(
-      HabitStreak.titleGreenOpacity(for: 60)
+      HabitStreak.titleBackgroundGreenOpacity(for: 60)
     )
     let end = try #require(
-      HabitStreak.titleGreenOpacity(for: 90)
+      HabitStreak.titleBackgroundGreenOpacity(for: 90)
     )
 
     #expect(abs(start - 0.12) < 0.000_001)
     #expect(midpoint < (start + end) / 2)
     #expect(abs(end - 0.35) < 0.000_001)
-    #expect(HabitStreak.titleGreenOpacity(for: 29) == nil)
-    #expect(HabitStreak.titleGreenOpacity(for: 120) == end)
+    #expect(
+      HabitStreak.titleBackgroundGreenOpacity(for: 29) == nil
+    )
+    #expect(
+      HabitStreak.titleBackgroundGreenOpacity(for: 120) == end
+    )
+  }
+
+  @Test func goalTitleContrastPassesWCAGAAAtEveryStage() {
+    for colorScheme in [ColorScheme.light, .dark] {
+      var environment = EnvironmentValues()
+      environment.colorScheme = colorScheme
+
+      let base = resolved(
+        appBackgroundColor,
+        in: environment
+      )
+      let green = resolved(.green, in: environment)
+      let primary = resolved(.primary, in: environment)
+
+      for qualifyingLength in 0...120 {
+        let greenOpacity = HabitStreak
+          .titleBackgroundGreenOpacity(
+            for: qualifyingLength
+          ) ?? 0
+        let background = green.composited(
+          over: base,
+          opacity: greenOpacity
+        )
+        let displayedText = primary.composited(
+          over: background
+        )
+        let contrast = contrastRatio(
+          displayedText,
+          background
+        )
+
+        #expect(
+          contrast >= 4.5,
+          Comment(
+            rawValue: "\(colorScheme) mode at day "
+              + "\(qualifyingLength) has only "
+              + "\(contrast):1 contrast"
+          )
+        )
+      }
+    }
+  }
+
+  private struct ResolvedColor {
+    let red: Double
+    let green: Double
+    let blue: Double
+    let opacity: Double
+
+    func composited(
+      over background: ResolvedColor,
+      opacity additionalOpacity: Double = 1
+    ) -> ResolvedColor {
+      let alpha = opacity * additionalOpacity
+      return ResolvedColor(
+        red: red * alpha + background.red * (1 - alpha),
+        green: green * alpha
+          + background.green * (1 - alpha),
+        blue: blue * alpha
+          + background.blue * (1 - alpha),
+        opacity: 1
+      )
+    }
+  }
+
+  private var appBackgroundColor: Color {
+    #if canImport(AppKit)
+    Color(nsColor: .windowBackgroundColor)
+    #elseif canImport(UIKit)
+    Color(uiColor: .systemBackground)
+    #endif
+  }
+
+  private func resolved(
+    _ color: Color,
+    in environment: EnvironmentValues
+  ) -> ResolvedColor {
+    let resolved = color.resolve(in: environment)
+    return ResolvedColor(
+      red: Double(resolved.red),
+      green: Double(resolved.green),
+      blue: Double(resolved.blue),
+      opacity: Double(resolved.opacity)
+    )
+  }
+
+  private func contrastRatio(
+    _ first: ResolvedColor,
+    _ second: ResolvedColor
+  ) -> Double {
+    let lighter = max(luminance(first), luminance(second))
+    let darker = min(luminance(first), luminance(second))
+    return (lighter + 0.05) / (darker + 0.05)
+  }
+
+  private func luminance(_ color: ResolvedColor) -> Double {
+    0.2126 * linearComponent(color.red)
+      + 0.7152 * linearComponent(color.green)
+      + 0.0722 * linearComponent(color.blue)
+  }
+
+  private func linearComponent(_ component: Double) -> Double {
+    component <= 0.04045
+      ? component / 12.92
+      : pow((component + 0.055) / 1.055, 2.4)
   }
 
   private func streakLength(

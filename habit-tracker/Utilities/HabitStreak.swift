@@ -52,7 +52,7 @@ enum HabitStreak {
     return longestQualifyingLength
   }
 
-  static func titleGreenOpacity(
+  static func titleBackgroundGreenOpacity(
     for qualifyingLength: Int?
   ) -> Double? {
     guard let qualifyingLength,
