@@ -189,15 +189,8 @@ struct ContentView: View {
   private func ensureTodayExists() {
     let now = Date.now
     let todayKey = DayBoundary.dateKey(for: now)
-    let restoredTodayKey = DayBoundary.effectiveTodayKey(
-      logicalTodayKey: todayKey,
-      calendarTodayKey: DayBoundary.calendarDateKey(for: now),
-      visibleDateKeys: allDays
-        .filter { !$0.isHidden }
-        .map(\.dateKey)
-    )
-    effectiveTodayKey = restoredTodayKey
-    selectedDateKey = restoredTodayKey
+    effectiveTodayKey = todayKey
+    selectedDateKey = todayKey
 
     ensureDayVisible(todayKey)
     ensureDayVisible(
@@ -205,9 +198,7 @@ struct ContentView: View {
     )
   }
 
-  /// Spawns tomorrow's date. Tomorrow becomes the new
-  /// effective "today", and the actual today shifts into
-  /// past dates.
+  /// Spawns tomorrow's date to the right of today.
   private func spawnTomorrow() {
     let calendarToday = DayBoundary.dateKey()
     let tomorrowKey = DayBoundary.tomorrowKey(
@@ -217,7 +208,6 @@ struct ContentView: View {
     ensureDayVisible(tomorrowKey)
 
     withAnimation {
-      effectiveTodayKey = tomorrowKey
       selectedDateKey = tomorrowKey
     }
   }
@@ -225,9 +215,6 @@ struct ContentView: View {
   private func insertDate(_ dateKey: String) {
     withAnimation {
       ensureDayVisible(dateKey)
-      if dateKey > effectiveTodayKey {
-        effectiveTodayKey = dateKey
-      }
       selectedDateKey = dateKey
     }
   }

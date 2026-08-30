@@ -225,53 +225,56 @@ struct DayBoundaryTests {
     #expect(back == key)
   }
 
-  @Test func effectiveTodayRestoresVisibleFutureDay() {
-    let effective = DayBoundary.effectiveTodayKey(
-      logicalTodayKey: "2026-03-17",
-      calendarTodayKey: "2026-03-17",
+}
+
+struct DayColumnLayoutTests {
+  private let todayKey = "2026-03-17"
+
+  @Test func futureDaysRemainToTheRightOfToday() {
+    let layout = DayColumnLayout(
       visibleDateKeys: [
+        "2026-03-18",
         "2026-03-16",
         "2026-03-17",
+        "2026-03-19",
+      ],
+      todayKey: todayKey
+    )
+
+    #expect(layout.pastDateKeys == ["2026-03-16"])
+    #expect(
+      layout.currentAndFutureDateKeys == [
+        "2026-03-17",
         "2026-03-18",
+        "2026-03-19",
       ]
     )
-    #expect(effective == "2026-03-18")
   }
 
-  @Test func effectiveTodayIgnoresPastDays() {
-    let effective = DayBoundary.effectiveTodayKey(
-      logicalTodayKey: "2026-03-17",
-      calendarTodayKey: "2026-03-17",
+  @Test func todayIsPresentWhileItsDayRecordLoads() {
+    let layout = DayColumnLayout(
+      visibleDateKeys: ["2026-03-16"],
+      todayKey: todayKey
+    )
+
+    #expect(layout.currentAndFutureDateKeys == [todayKey])
+  }
+
+  @Test func onlyTodayAndYesterdayAllowImmediateTaps() {
+    let layout = DayColumnLayout(
       visibleDateKeys: [
         "2026-03-15",
         "2026-03-16",
-      ]
-    )
-    #expect(effective == "2026-03-17")
-  }
-
-  @Test func effectiveTodayUsesLatestVisibleFutureDay() {
-    let effective = DayBoundary.effectiveTodayKey(
-      logicalTodayKey: "2026-03-17",
-      calendarTodayKey: "2026-03-17",
-      visibleDateKeys: [
-        "2026-03-19",
-        "2026-03-18",
-      ]
-    )
-    #expect(effective == "2026-03-19")
-  }
-
-  @Test func effectiveTodayIgnoresNewDateBeforeBoundary() {
-    let effective = DayBoundary.effectiveTodayKey(
-      logicalTodayKey: "2026-03-17",
-      calendarTodayKey: "2026-03-18",
-      visibleDateKeys: [
         "2026-03-17",
         "2026-03-18",
-      ]
+      ],
+      todayKey: todayKey
     )
-    #expect(effective == "2026-03-17")
+
+    #expect(!layout.requiresLongPress(for: "2026-03-16"))
+    #expect(!layout.requiresLongPress(for: "2026-03-17"))
+    #expect(layout.requiresLongPress(for: "2026-03-15"))
+    #expect(layout.requiresLongPress(for: "2026-03-18"))
   }
 }
 

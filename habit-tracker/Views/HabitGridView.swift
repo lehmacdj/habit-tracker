@@ -30,15 +30,20 @@ struct HabitGridView: View {
     return visibleDays.contains { $0.dateKey == tomorrow }
   }
 
-  private var pastDateKeys: [String] {
-    let keys = visibleDays
-      .map(\.dateKey)
-      .filter { $0 < effectiveTodayKey }
-    return Array(Set(keys))
-      .sorted()
+  private var dayColumnLayout: DayColumnLayout {
+    DayColumnLayout(
+      visibleDateKeys: visibleDays.map(\.dateKey),
+      todayKey: effectiveTodayKey
+    )
   }
 
-  private var todayDateKey: String { effectiveTodayKey }
+  private var pastDateKeys: [String] {
+    dayColumnLayout.pastDateKeys
+  }
+
+  private var currentAndFutureDateKeys: [String] {
+    dayColumnLayout.currentAndFutureDateKeys
+  }
 
   private var visibleDateKeySet: Set<String> {
     Set(visibleDays.map(\.dateKey))
@@ -50,10 +55,11 @@ struct HabitGridView: View {
   private let spawnTomorrowCancelThreshold: CGFloat = 12
   private let spawnTomorrowHoldDuration: TimeInterval = 1
 
-  /// Width of the "real" content (past + goals + today)
+  /// Width of the date columns and the Goals column.
   private var contentWidth: CGFloat {
-    CGFloat(pastDateKeys.count) * cellSize
-      + goalColumnWidth + cellSize
+    CGFloat(
+      pastDateKeys.count + currentAndFutureDateKeys.count
+    ) * cellSize + goalColumnWidth
   }
 
   var body: some View {
@@ -193,36 +199,33 @@ struct HabitGridView: View {
           height: cellSize
         )
 
-      // Today header — only deletable if it's a
-      // spawned tomorrow, not the real calendar today
-      let previousKey = DayBoundary.yesterdayKey(
-        from: todayDateKey
-      )
-      let nextKey = DayBoundary.tomorrowKey(
-        from: todayDateKey
-      )
-      DateHeaderView(
-        dateKey: todayDateKey,
-        isSelected: todayDateKey == selectedDateKey,
-        canDelete: todayDateKey != DayBoundary.dateKey(),
-        canInsertPrevious: !visibleDateKeySet
-          .contains(previousKey),
-        canInsertNext: !visibleDateKeySet.contains(nextKey),
-        onTap: { onSelectDate(todayDateKey) },
-        onDelete: {
-          if let day = visibleDays.first(
-            where: { $0.dateKey == todayDateKey }
-          ) {
-            onDeleteDate(day)
+      // Today and any explicitly added future dates.
+      ForEach(currentAndFutureDateKeys, id: \.self) { key in
+        let previousKey = DayBoundary.yesterdayKey(from: key)
+        let nextKey = DayBoundary.tomorrowKey(from: key)
+        DateHeaderView(
+          dateKey: key,
+          isSelected: key == selectedDateKey,
+          canDelete: key != effectiveTodayKey,
+          canInsertPrevious: !visibleDateKeySet
+            .contains(previousKey),
+          canInsertNext: !visibleDateKeySet.contains(nextKey),
+          onTap: { onSelectDate(key) },
+          onDelete: {
+            if let day = visibleDays.first(
+              where: { $0.dateKey == key }
+            ) {
+              onDeleteDate(day)
+            }
+          },
+          onInsertPrevious: {
+            onInsertDate(previousKey)
+          },
+          onInsertNext: {
+            onInsertDate(nextKey)
           }
-        },
-        onInsertPrevious: {
-          onInsertDate(previousKey)
-        },
-        onInsertNext: {
-          onInsertDate(nextKey)
-        }
-      )
+        )
+      }
     }
     .frame(height: cellSize)
     .background(Color.secondary.opacity(0.25))
@@ -264,11 +267,13 @@ struct HabitGridView: View {
       )
       .frame(width: goalColumnWidth)
 
-      CompletionCellView(
-        goal: goal,
-        dateKey: todayDateKey,
-        cellAge: cellAge(for: todayDateKey)
-      )
+      ForEach(currentAndFutureDateKeys, id: \.self) { key in
+        CompletionCellView(
+          goal: goal,
+          dateKey: key,
+          cellAge: cellAge(for: key)
+        )
+      }
     }
     .frame(minHeight: cellSize)
     .contentShape(Rectangle())
@@ -330,7 +335,9 @@ struct HabitGridView: View {
       }
 
       Color.clear.frame(
-        width: cellSize, height: cellSize
+        width: CGFloat(currentAndFutureDateKeys.count)
+          * cellSize,
+        height: cellSize
       )
     }
   }
@@ -359,14 +366,9 @@ struct HabitGridView: View {
   private func cellAge(
     for key: String
   ) -> CompletionCellView.CellAge {
-    let calendarToday = DayBoundary.dateKey()
-    let calendarYesterday = DayBoundary.yesterdayKey(
-      from: calendarToday
-    )
     if key == effectiveTodayKey {
       return .current
-    } else if key == calendarToday
-      || key == calendarYesterday {
+    } else if !dayColumnLayout.requiresLongPress(for: key) {
       return .yesterday
     } else {
       return .older
