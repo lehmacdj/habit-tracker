@@ -3,6 +3,7 @@ import SwiftData
 
 struct IntentionView: View {
   @Environment(\.modelContext) private var modelContext
+  @Environment(\.scenePhase) private var scenePhase
   let dateKey: String
   let isToday: Bool
   var isFocused: FocusState<Bool>.Binding
@@ -55,14 +56,12 @@ struct IntentionView: View {
       .onSubmit {
         isFocused.wrappedValue = false
       }
-      .onChange(of: text) { _, newValue in
-        saveIntention(newValue)
-      }
       .onAppear {
         text = day?.intentionText ?? ""
       }
-      .onChange(of: day?.intentionText) {
-        text = day?.intentionText ?? ""
+      .onChange(of: day?.intentionText) { _, newValue in
+        guard !isFocused.wrappedValue else { return }
+        text = newValue ?? ""
       }
     }
     .padding(.horizontal)
@@ -73,10 +72,37 @@ struct IntentionView: View {
       // dismisses the keyboard
       isFocused.wrappedValue = false
     }
+    .task(id: text) {
+      do {
+        try await Task.sleep(for: .milliseconds(500))
+      } catch {
+        return
+      }
+      saveIntention(text)
+    }
+    .onChange(of: isFocused.wrappedValue) { _, focused in
+      if !focused {
+        saveIntention(text)
+      }
+    }
+    .onChange(of: scenePhase) { _, newPhase in
+      if newPhase != .active {
+        saveIntention(text)
+      }
+    }
+    .onDisappear {
+      saveIntention(text)
+    }
   }
 
   private func saveIntention(_ newText: String) {
     if !days.isEmpty {
+      guard days.contains(where: {
+        $0.intentionText != newText
+      }) else {
+        return
+      }
+
       let now = Date()
       for day in days {
         day.intentionText = newText

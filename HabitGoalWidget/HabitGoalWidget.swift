@@ -119,9 +119,10 @@ struct HabitGoalWidgetView: View {
 
       Text(entry.intention ?? "What matters most?")
         .font(.headline)
-        .lineLimit(3)
+        .lineLimit(nil)
         .minimumScaleFactor(0.75)
         .foregroundStyle(.primary)
+        .layoutPriority(1)
 
       Spacer(minLength: 0)
 
@@ -275,6 +276,14 @@ private enum WidgetDayBoundary {
 #Preview(as: .systemSmall) {
   HabitGoalWidget()
 } timeline: {
+  DailyGoalEntry(
+    date: Date(),
+    intention: """
+      Get PAX badge, meet Jackie and possibly also Chris. \
+      Repair/replace damaged gear
+      """,
+    completedCount: 0
+  )
   DailyGoalEntry(
     date: Date(),
     intention: "Write the first draft",
