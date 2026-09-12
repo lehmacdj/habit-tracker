@@ -16,9 +16,11 @@ struct DayColumnLayout {
       .sorted()
   }
 
-  func requiresLongPress(for dateKey: String) -> Bool {
-    dateKey != todayKey
-      && dateKey != DayBoundary.yesterdayKey(
+  /// Single taps complete only today and yesterday. Other
+  /// cells are changed through their context menu.
+  func allowsTapToComplete(for dateKey: String) -> Bool {
+    dateKey == todayKey
+      || dateKey == DayBoundary.yesterdayKey(
         from: todayKey
       )
   }

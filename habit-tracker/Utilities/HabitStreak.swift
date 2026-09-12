@@ -3,7 +3,7 @@ import Foundation
 enum HabitStreak {
   struct Entry {
     let dateKey: String
-    let isCompleted: Bool
+    let state: CompletionState
     let updatedAt: Date
   }
 
@@ -22,7 +22,7 @@ enum HabitStreak {
   ) -> Int? {
     let completionByDate = latestEntriesByDate(entries)
     let isCurrentDayCompleted =
-      completionByDate[effectiveTodayKey]?.isCompleted == true
+      completionByDate[effectiveTodayKey]?.state == .completed
     var dateKey = isCurrentDayCompleted
       ? effectiveTodayKey
       : DayBoundary.yesterdayKey(from: effectiveTodayKey)
@@ -31,9 +31,14 @@ enum HabitStreak {
     var longestQualifyingLength: Int?
 
     while exceptions <= maximumExceptions {
-      if !hiddenDateKeys.contains(dateKey) {
+      // Intentionally skipped days are ignored just like
+      // hidden days: they are neither a completion nor an
+      // exception, so they never break a streak.
+      let state = completionByDate[dateKey]?.state
+      if !hiddenDateKeys.contains(dateKey),
+        state != .skipped {
         eligibleDays += 1
-        if completionByDate[dateKey]?.isCompleted != true {
+        if state != .completed {
           exceptions += 1
         }
 

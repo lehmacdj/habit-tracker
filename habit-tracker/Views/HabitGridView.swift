@@ -249,7 +249,8 @@ struct HabitGridView: View {
         CompletionCellView(
           goal: goal,
           dateKey: key,
-          cellAge: cellAge(for: key)
+          allowsTapToComplete: dayColumnLayout
+            .allowsTapToComplete(for: key)
         )
       }
 
@@ -271,7 +272,8 @@ struct HabitGridView: View {
         CompletionCellView(
           goal: goal,
           dateKey: key,
-          cellAge: cellAge(for: key)
+          allowsTapToComplete: dayColumnLayout
+            .allowsTapToComplete(for: key)
         )
       }
     }
@@ -352,7 +354,7 @@ struct HabitGridView: View {
       }
       return HabitStreak.Entry(
         dateKey: completion.dateKey,
-        isCompleted: completion.isCompleted,
+        state: completion.state,
         updatedAt: completion.updatedAt
       )
     }
@@ -361,18 +363,6 @@ struct HabitGridView: View {
       hiddenDateKeys: hiddenDateKeys,
       effectiveTodayKey: effectiveTodayKey
     )
-  }
-
-  private func cellAge(
-    for key: String
-  ) -> CompletionCellView.CellAge {
-    if key == effectiveTodayKey {
-      return .current
-    } else if !dayColumnLayout.requiresLongPress(for: key) {
-      return .yesterday
-    } else {
-      return .older
-    }
   }
 
   private func addGoal() {

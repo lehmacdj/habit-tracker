@@ -46,7 +46,7 @@ struct HabitStreakTests {
     let hiddenKey = dateKey(daysBeforeToday: 27)
     let olderCompletion = HabitStreak.Entry(
       dateKey: dateKey(daysBeforeToday: 30),
-      isCompleted: true,
+      state: .completed,
       updatedAt: .distantPast
     )
     let completedEntries = entries(count: 27)
@@ -61,11 +61,56 @@ struct HabitStreakTests {
     ) == nil)
   }
 
+  @Test func skippedDaysAreNeitherCompletionsNorExceptions() {
+    let skipped = HabitStreak.Entry(
+      dateKey: dateKey(daysBeforeToday: 27),
+      state: .skipped,
+      updatedAt: .now
+    )
+    let olderCompletion = HabitStreak.Entry(
+      dateKey: dateKey(daysBeforeToday: 30),
+      state: .completed,
+      updatedAt: .distantPast
+    )
+    let completedEntries = entries(count: 27)
+      + [olderCompletion]
+
+    #expect(streakLength(
+      completedEntries: completedEntries + [skipped]
+    ) == 30)
+    #expect(streakLength(
+      completedEntries: completedEntries
+    ) == nil)
+  }
+
+  @Test func skippingADayDoesNotCountAsACompletion() {
+    let yesterdayKey = DayBoundary.yesterdayKey(
+      from: todayKey
+    )
+    let skippedToday = HabitStreak.Entry(
+      dateKey: todayKey,
+      state: .skipped,
+      updatedAt: .now
+    )
+    let completedEntries = entries(
+      count: 29,
+      endingAt: yesterdayKey
+    )
+
+    // The skip neither extends nor shortens what the
+    // completions alone qualify for.
+    #expect(streakLength(
+      completedEntries: completedEntries + [skippedToday]
+    ) == streakLength(
+      completedEntries: completedEntries
+    ))
+  }
+
   @Test func uncheckedCurrentDayDoesNotCountAsException() {
     let yesterdayKey = DayBoundary.yesterdayKey(from: todayKey)
     let uncheckedToday = HabitStreak.Entry(
       dateKey: todayKey,
-      isCompleted: false,
+      state: .unmarked,
       updatedAt: .now
     )
     let completedEntries = entries(
@@ -86,12 +131,12 @@ struct HabitStreakTests {
     ) + [
       HabitStreak.Entry(
         dateKey: todayKey,
-        isCompleted: true,
+        state: .completed,
         updatedAt: Date(timeIntervalSince1970: 1)
       ),
       HabitStreak.Entry(
         dateKey: todayKey,
-        isCompleted: false,
+        state: .unmarked,
         updatedAt: Date(timeIntervalSince1970: 2)
       ),
     ]
@@ -262,7 +307,7 @@ struct HabitStreakTests {
       }
       return HabitStreak.Entry(
         dateKey: dateKey,
-        isCompleted: true,
+        state: .completed,
         updatedAt: .distantPast
       )
     }
@@ -386,10 +431,70 @@ struct DayColumnLayoutTests {
       todayKey: todayKey
     )
 
-    #expect(!layout.requiresLongPress(for: "2026-03-16"))
-    #expect(!layout.requiresLongPress(for: "2026-03-17"))
-    #expect(layout.requiresLongPress(for: "2026-03-15"))
-    #expect(layout.requiresLongPress(for: "2026-03-18"))
+    #expect(layout.allowsTapToComplete(for: "2026-03-16"))
+    #expect(layout.allowsTapToComplete(for: "2026-03-17"))
+    #expect(!layout.allowsTapToComplete(for: "2026-03-15"))
+    #expect(!layout.allowsTapToComplete(for: "2026-03-18"))
+  }
+}
+
+struct CompletionModelTests {
+  private func makeCompletion() -> Completion {
+    Completion(
+      dateKey: "2026-07-20",
+      goal: Goal(name: "Exercise", sortOrder: 0)
+    )
+  }
+
+  @Test func stateRoundTripsThroughStoredValues() {
+    let completion = makeCompletion()
+    #expect(completion.state == .completed)
+
+    completion.state = .skipped
+    #expect(completion.state == .skipped)
+
+    completion.state = .unmarked
+    #expect(completion.state == .unmarked)
+
+    completion.state = .completed
+    #expect(completion.state == .completed)
+  }
+
+  @Test func legacyFlagMirrorsEveryStateChange() {
+    let completion = makeCompletion()
+    #expect(completion.isCompleted)
+
+    // Older clients only understand isCompleted, so a skip
+    // has to read as "not completed" to them.
+    completion.state = .skipped
+    #expect(completion.isCompleted == false)
+
+    completion.state = .completed
+    #expect(completion.isCompleted)
+
+    completion.state = .unmarked
+    #expect(completion.isCompleted == false)
+  }
+
+  @Test func recordsWithoutAStateFallBackToTheLegacyFlag() {
+    // How rows written before skipping existed, and records
+    // synced from a client that predates it, arrive.
+    let completion = makeCompletion()
+    completion.stateRawValue = ""
+
+    completion.isCompleted = true
+    #expect(completion.state == .completed)
+
+    completion.isCompleted = false
+    #expect(completion.state == .unmarked)
+  }
+
+  @Test func unrecognizedStateFallsBackToTheLegacyFlag() {
+    let completion = makeCompletion()
+    completion.stateRawValue = "somethingNewerWroteThis"
+    completion.isCompleted = true
+
+    #expect(completion.state == .completed)
   }
 }
 
@@ -510,6 +615,11 @@ struct DayModelTests {
         goal: goal
       )
       completion.isCompleted = false
+      let completedCompletion = HabitSchemaV1.Completion(
+        dateKey: "2026-07-27",
+        goal: goal
+      )
+      completedCompletion.isCompleted = true
       let day = HabitSchemaV1.Day(dateKey: dateKey)
       day.isHidden = true
       container.mainContext.insert(
@@ -525,15 +635,18 @@ struct DayModelTests {
       container.mainContext.insert(
         completion
       )
+      container.mainContext.insert(
+        completedCompletion
+      )
       try container.mainContext.save()
     }
 
     try autoreleasepool {
       let schema = Schema(
-        versionedSchema: HabitSchemaV4.self
+        versionedSchema: HabitSchemaV5.self
       )
       let configuration = ModelConfiguration(
-        "MigrationTestV4",
+        "MigrationTestV5",
         schema: schema,
         url: storeURL,
         cloudKitDatabase: .none
@@ -565,9 +678,27 @@ struct DayModelTests {
           [{"oldName":"Movement","changedAt":0}]
           """
       )
-      #expect(completions.count == 1)
-      #expect(completions.first?.isCompleted == false)
-      #expect(completions.first?.goal?.name == "Exercise")
+      let byDateKey = Dictionary(
+        uniqueKeysWithValues: completions.map {
+          ($0.dateKey, $0)
+        }
+      )
+      let migrated = try #require(byDateKey[dateKey])
+      let migratedCompleted = try #require(
+        byDateKey["2026-07-27"]
+      )
+
+      #expect(completions.count == 2)
+      #expect(migrated.isCompleted == false)
+      #expect(migrated.goal?.name == "Exercise")
+
+      // Migrating stamps a state onto every existing row, so
+      // an empty stateRawValue afterwards means the record
+      // came from a client predating version five.
+      #expect(migrated.state == .unmarked)
+      #expect(migrated.stateRawValue == "unmarked")
+      #expect(migratedCompleted.state == .completed)
+      #expect(migratedCompleted.stateRawValue == "completed")
     }
   }
 
@@ -588,6 +719,16 @@ struct DayModelTests {
         for: HabitSchemaV3.models
       )
     )
+    let versionFour = try #require(
+      NSManagedObjectModel.makeManagedObjectModel(
+        for: HabitSchemaV4.models
+      )
+    )
+    let versionFive = try #require(
+      NSManagedObjectModel.makeManagedObjectModel(
+        for: HabitSchemaV5.models
+      )
+    )
 
     for entityName in ["Goal", "Completion"] {
       #expect(
@@ -602,6 +743,27 @@ struct DayModelTests {
     #expect(
       versionTwo.entityVersionHashesByName["Day"]
         == versionThree.entityVersionHashesByName["Day"]
+    )
+    // Freezing version four must not have disturbed the
+    // entities it shares with version three.
+    #expect(
+      versionThree.entityVersionHashesByName["Completion"]
+        == versionFour.entityVersionHashesByName["Completion"]
+    )
+    #expect(
+      versionThree.entityVersionHashesByName["Day"]
+        == versionFour.entityVersionHashesByName["Day"]
+    )
+    // Version five only adds Completion.stateRawValue.
+    for entityName in ["Goal", "Day"] {
+      #expect(
+        versionFour.entityVersionHashesByName[entityName]
+          == versionFive.entityVersionHashesByName[entityName]
+      )
+    }
+    #expect(
+      versionFour.entityVersionHashesByName["Completion"]
+        != versionFive.entityVersionHashesByName["Completion"]
     )
   }
 }
@@ -644,6 +806,9 @@ struct HabitDataExportTests {
         == ["2026-07-20"]
     )
     #expect(export.completions.first?.goalID == goal.id)
+    #expect(
+      export.completions.first?.state == .completed
+    )
   }
 
   @Test @MainActor
@@ -973,6 +1138,26 @@ struct MigrationStoreBackupTests {
           path: "default.store"
         )
       ) == originalStore
+    )
+
+    // A new target schema is a new migration, so it takes
+    // its own snapshot of the store as it stands right
+    // before that migration runs.
+    let upgradeSnapshot = try #require(
+      try MigrationStoreBackup.createIfNeeded(
+        storeURL: storeURL,
+        modelTypes: HabitSchemaV5.models,
+        backupRootURL: backupDirectory
+      )
+    )
+
+    #expect(upgradeSnapshot != snapshot)
+    #expect(
+      try Data(
+        contentsOf: upgradeSnapshot.appending(
+          path: "default.store"
+        )
+      ) == Data("changed".utf8)
     )
   }
 }

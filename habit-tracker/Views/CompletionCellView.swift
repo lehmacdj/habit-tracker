@@ -8,19 +8,22 @@ struct CompletionCellView: View {
   let goalId: UUID
   let goal: Goal
   let dateKey: String
-  let cellAge: CellAge
+  /// Today and yesterday complete with a single tap. Every
+  /// other cell only changes through the context menu so old
+  /// and future days aren't marked by accident.
+  let allowsTapToComplete: Bool
 
-  enum CellAge {
-    case current    // today (or effective today)
-    case yesterday  // yesterday (single tap)
-    case older      // requires long press
-  }
+  static let skippedYellowOpacity = 0.35
 
-  init(goal: Goal, dateKey: String, cellAge: CellAge) {
+  init(
+    goal: Goal,
+    dateKey: String,
+    allowsTapToComplete: Bool
+  ) {
     self.goal = goal
     self.goalId = goal.id
     self.dateKey = dateKey
-    self.cellAge = cellAge
+    self.allowsTapToComplete = allowsTapToComplete
     let gid = goal.id
     let dk = dateKey
     _completions = Query(
@@ -36,39 +39,64 @@ struct CompletionCellView: View {
     completions.first
   }
 
-  private var isCompleted: Bool {
-    completion?.isCompleted ?? false
+  private var state: CompletionState {
+    completion?.state ?? .unmarked
   }
 
   var body: some View {
     Group {
-      switch cellAge {
-      case .current, .yesterday:
-        Button(action: toggle) {
+      if allowsTapToComplete {
+        Button {
+          apply(.completed)
+        } label: {
           cellContent
         }
         .buttonStyle(.plain)
-      case .older:
+      } else {
         cellContent
-          .onLongPressGesture(minimumDuration: 0.5) {
-            toggle()
-          }
       }
     }
+    .contextMenu {
+      menuButton(
+        for: .completed,
+        title: "Complete",
+        systemImage: "checkmark"
+      )
+      menuButton(
+        for: .skipped,
+        title: "Skip",
+        systemImage: "minus.circle"
+      )
+    }
     #if os(iOS)
-    .sensoryFeedback(.impact, trigger: isCompleted)
+    .sensoryFeedback(.impact, trigger: state)
     #endif
+  }
+
+  /// Selecting the state a cell is already in clears it, so
+  /// the menu doubles as the way to undo a mark.
+  @ViewBuilder
+  private func menuButton(
+    for target: CompletionState,
+    title: String,
+    systemImage: String
+  ) -> some View {
+    let isActive = state == target
+    Button {
+      apply(target)
+    } label: {
+      Label(
+        isActive ? "Clear \(title)" : title,
+        systemImage: isActive
+          ? "arrow.uturn.backward"
+          : systemImage
+      )
+    }
   }
 
   private var cellContent: some View {
     Rectangle()
-      .fill(
-        isCompleted
-          ? Color.green.opacity(
-            HabitStreak.completedGreenOpacity
-          )
-          : Color.secondary.opacity(0.08)
-      )
+      .fill(fillColor)
       .frame(width: 48, height: 48)
       .overlay(
         Rectangle()
@@ -80,17 +108,38 @@ struct CompletionCellView: View {
       .contentShape(Rectangle())
   }
 
-  private func toggle() {
-    if let existing = completion {
-      let newValue = !existing.isCompleted
-      let now = Date()
-      for completion in completions {
-        completion.isCompleted = newValue
-        completion.updatedAt = now
-      }
-    } else {
-      let c = Completion(dateKey: dateKey, goal: goal)
-      modelContext.insert(c)
+  private var fillColor: Color {
+    switch state {
+    case .completed:
+      Color.green.opacity(
+        HabitStreak.completedGreenOpacity
+      )
+    case .skipped:
+      Color.yellow.opacity(Self.skippedYellowOpacity)
+    case .unmarked:
+      Color.secondary.opacity(0.08)
+    }
+  }
+
+  private func apply(_ target: CompletionState) {
+    let newState: CompletionState =
+      state == target ? .unmarked : target
+
+    guard !completions.isEmpty else {
+      guard newState != .unmarked else { return }
+      let completion = Completion(
+        dateKey: dateKey,
+        goal: goal
+      )
+      completion.state = newState
+      modelContext.insert(completion)
+      return
+    }
+
+    let now = Date()
+    for completion in completions {
+      completion.state = newState
+      completion.updatedAt = now
     }
   }
 }

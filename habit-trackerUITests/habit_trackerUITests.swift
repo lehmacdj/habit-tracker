@@ -140,6 +140,52 @@ final class habit_trackerUITests: XCTestCase {
     )
   }
 
+  // MARK: - Cell Context Menu
+
+  @MainActor
+  func testCellContextMenuCompletesAndSkips() throws {
+    addGoalWithName("Stretch")
+
+    longPressTodayCell(forGoalNamed: "Stretch")
+    let completeItem = menuItem(named: "Complete")
+    XCTAssertTrue(
+      completeItem.waitForExistence(timeout: defaultTimeout),
+      "Long pressing a cell should offer Complete"
+    )
+    XCTAssertTrue(
+      menuItem(named: "Skip").exists,
+      "Long pressing a cell should offer Skip"
+    )
+    tap(menuItem(named: "Skip"))
+
+    // Reopening the menu reflects the skip and offers to
+    // undo it, which is how skips and completions are
+    // cleared now that long press no longer toggles.
+    longPressTodayCell(forGoalNamed: "Stretch")
+    let clearSkip = menuItem(named: "Clear Skip")
+    XCTAssertTrue(
+      clearSkip.waitForExistence(timeout: defaultTimeout),
+      "A skipped cell should offer to clear the skip"
+    )
+    tap(clearSkip)
+
+    longPressTodayCell(forGoalNamed: "Stretch")
+    let completeAgain = menuItem(named: "Complete")
+    XCTAssertTrue(
+      completeAgain.waitForExistence(timeout: defaultTimeout),
+      "Clearing a skip should return the cell to unmarked"
+    )
+    tap(completeAgain)
+
+    longPressTodayCell(forGoalNamed: "Stretch")
+    XCTAssertTrue(
+      menuItem(named: "Clear Complete")
+        .waitForExistence(timeout: defaultTimeout),
+      "A completed cell should offer to clear the completion"
+    )
+    tap(menuItem(named: "Clear Complete"))
+  }
+
   @MainActor
   func testExportSheetOpens() throws {
     let exportButton = app.buttons["exportHabitDataButton"]
@@ -425,6 +471,46 @@ final class habit_trackerUITests: XCTestCase {
     completionCell.click()
     #else
     completionCell.tap()
+    #endif
+  }
+
+  /// Today's cell sits just to the right of the goal name.
+  @MainActor
+  private func todayCellCoordinate(
+    forGoalNamed name: String
+  ) -> XCUICoordinate? {
+    guard let goalField = waitForGoalField(withName: name)
+    else {
+      XCTFail("Goal name '\(name)' should exist")
+      return nil
+    }
+
+    return goalField.coordinate(
+      withNormalizedOffset: CGVector(dx: 1, dy: 0.5)
+    ).withOffset(CGVector(dx: 40, dy: 0))
+  }
+
+  /// Opens the context menu on today's cell for a goal.
+  @MainActor
+  private func longPressTodayCell(forGoalNamed name: String) {
+    guard let cell = todayCellCoordinate(forGoalNamed: name)
+    else { return }
+
+    #if os(macOS)
+    cell.rightClick()
+    #else
+    cell.press(forDuration: 1.2)
+    #endif
+  }
+
+  /// Context menu items are menu items on macOS but plain
+  /// buttons on iOS.
+  @MainActor
+  private func menuItem(named name: String) -> XCUIElement {
+    #if os(macOS)
+    app.menuItems[name]
+    #else
+    app.buttons[name]
     #endif
   }
 
