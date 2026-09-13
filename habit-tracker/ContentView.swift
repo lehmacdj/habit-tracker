@@ -44,7 +44,7 @@ struct ContentView: View {
       VStack(spacing: 0) {
         IntentionView(
           dateKey: selectedDateKey,
-          isToday: selectedDateKey == effectiveTodayKey,
+          todayKey: effectiveTodayKey,
           isFocused: $isIntentionFocused
         )
         .id(selectedDateKey)

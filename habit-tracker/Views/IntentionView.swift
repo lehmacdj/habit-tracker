@@ -5,7 +5,7 @@ struct IntentionView: View {
   @Environment(\.modelContext) private var modelContext
   @Environment(\.scenePhase) private var scenePhase
   let dateKey: String
-  let isToday: Bool
+  let todayKey: String
   var isFocused: FocusState<Bool>.Binding
 
   @Query private var days: [Day]
@@ -13,11 +13,11 @@ struct IntentionView: View {
 
   init(
     dateKey: String,
-    isToday: Bool,
+    todayKey: String,
     isFocused: FocusState<Bool>.Binding
   ) {
     self.dateKey = dateKey
-    self.isToday = isToday
+    self.todayKey = todayKey
     self.isFocused = isFocused
     let key = dateKey
     _days = Query(
@@ -34,15 +34,22 @@ struct IntentionView: View {
     }
   }
 
+  /// Date keys are `yyyy-MM-dd`, so string order matches date order.
+  private var promptText: LocalizedStringKey {
+    if dateKey == todayKey {
+      "Today I will..."
+    } else if dateKey < todayKey {
+      "That day I wanted to..."
+    } else {
+      "That day I will..."
+    }
+  }
+
   var body: some View {
     VStack(spacing: 8) {
-      Text(
-        isToday
-          ? "Today I will..."
-          : "That day I will..."
-      )
-      .font(.subheadline)
-      .foregroundStyle(.secondary)
+      Text(promptText)
+        .font(.subheadline)
+        .foregroundStyle(.secondary)
 
       TextField(
         "set an intention",
