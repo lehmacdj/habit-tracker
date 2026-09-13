@@ -277,81 +277,185 @@ enum CloudSyncErrorFormatter {
     return lines.joined(separator: "\n")
   }
 
+  /// userInfo keys already covered by the error's localized text.
+  private static let localizedKeys: Set<String> = [
+    NSLocalizedDescriptionKey,
+    NSLocalizedFailureReasonErrorKey,
+    NSLocalizedRecoverySuggestionErrorKey,
+  ]
+
+  private static let keyLabels: [String: String] = [
+    NSUnderlyingErrorKey: "Underlying error",
+    NSMultipleUnderlyingErrorsKey: "Underlying errors",
+    NSDetailedErrorsKey: "Detailed errors",
+    NSDebugDescriptionErrorKey: "Debug description",
+    NSFilePathErrorKey: "File path",
+    NSURLErrorKey: "URL",
+    NSURLErrorFailingURLStringErrorKey: "Failing URL",
+    NSValidationObjectErrorKey: "Validation object",
+    NSValidationKeyErrorKey: "Validation key",
+    NSValidationValueErrorKey: "Validation value",
+    NSAffectedObjectsErrorKey: "Affected objects",
+    NSAffectedStoresErrorKey: "Affected stores",
+    NSPersistentStoreSaveConflictsErrorKey: "Save conflicts",
+    CKErrorRetryAfterKey: "Retry after (seconds)",
+    CKPartialErrorsByItemIDKey: "Failed items",
+    CKRecordChangedErrorServerRecordKey: "Server record",
+    CKRecordChangedErrorClientRecordKey: "Client record",
+    CKRecordChangedErrorAncestorRecordKey: "Ancestor record",
+  ]
+
+  private typealias NestedErrors = (
+    label: String,
+    items: [(item: String?, error: NSError)]
+  )
+
   private static func append(
     _ error: NSError,
     to lines: inout [String],
     indentation: String,
     depth: Int
   ) {
-    guard depth < 5 else { return }
+    guard depth < 5 else {
+      lines.append("\(indentation)… (nested too deeply)")
+      return
+    }
     lines.append(
-      "\(indentation)\(error.domain) (\(error.code)): "
+      "\(indentation)\(title(for: error)): "
         + error.localizedDescription
     )
+    if let summary = ErrorCodeCatalog.entry(for: error)?.summary {
+      lines.append("\(indentation)About: \(summary)")
+    }
 
     if let reason = error.localizedFailureReason,
-      reason != error.localizedDescription {
+      !error.localizedDescription.contains(reason) {
       lines.append("\(indentation)Reason: \(reason)")
     }
     if let suggestion = error.localizedRecoverySuggestion {
       lines.append("\(indentation)Try: \(suggestion)")
     }
-    if let retryAfter = error.userInfo[
-      CKErrorRetryAfterKey
-    ] as? NSNumber {
-      lines.append(
-        "\(indentation)Retry after: \(retryAfter) seconds"
-      )
+
+    // Render scalar values first, then any errors nested under any
+    // key, so every domain gets the same treatment.
+    var nested: [NestedErrors] = []
+    for key in error.userInfo.keys.sorted()
+    where !localizedKeys.contains(key) {
+      guard let value = error.userInfo[key] else { continue }
+      let label = keyLabels[key] ?? key
+      if let items = nestedErrors(in: value) {
+        nested.append((label, items))
+        continue
+      }
+      if let collection = value as? NSArray, collection.count == 0 {
+        continue
+      }
+      if let collection = value as? NSDictionary, collection.count == 0 {
+        continue
+      }
+      let text = truncated(describe(value))
+      guard !text.isEmpty, text != error.localizedDescription else {
+        continue
+      }
+      lines.append("\(indentation)\(label): \(text)")
     }
 
     let childIndentation = indentation + "  "
-    if let underlying = error.userInfo[
-      NSUnderlyingErrorKey
-    ] as? NSError {
-      append(
-        underlying,
-        to: &lines,
-        indentation: childIndentation,
-        depth: depth + 1
-      )
-    }
-    if let detailed = error.userInfo[
-      NSDetailedErrorsKey
-    ] as? NSArray {
-      for case let child as NSError in detailed {
+    for (label, items) in nested {
+      if items.count == 1 && items[0].item == nil {
+        lines.append("\(indentation)\(label):")
+      } else {
+        lines.append(
+          "\(indentation)\(label): \(items.count) "
+            + "(\(codeSummary(for: items.map(\.error))))"
+        )
+      }
+      for (item, child) in items {
+        var itemIndentation = childIndentation
+        if let item {
+          lines.append("\(childIndentation)Item: \(item)")
+          itemIndentation += "  "
+        }
         append(
           child,
           to: &lines,
-          indentation: childIndentation,
+          indentation: itemIndentation,
           depth: depth + 1
         )
       }
     }
-    for (item, child) in partialErrors(in: error) {
-      lines.append("\(childIndentation)Item: \(item)")
-      append(
-        child,
-        to: &lines,
-        indentation: childIndentation + "  ",
-        depth: depth + 1
-      )
+  }
+
+  /// Errors held directly, in an array, or in a dictionary keyed by the
+  /// affected item (e.g. CloudKit partial failures).
+  private static func nestedErrors(
+    in value: Any
+  ) -> [(item: String?, error: NSError)]? {
+    switch value {
+    case let error as NSError:
+      return [(nil, error)]
+    case let array as NSArray where array.count > 0:
+      let errors = array.compactMap { $0 as? NSError }
+      guard errors.count == array.count else { return nil }
+      return errors.map { (nil, $0) }
+    case let dictionary as NSDictionary where dictionary.count > 0:
+      var items: [(item: String?, error: NSError)] = []
+      for key in dictionary.allKeys {
+        guard let error = dictionary.object(forKey: key) as? NSError
+        else { return nil }
+        items.append((describe(key), error))
+      }
+      return items.sorted { ($0.item ?? "") < ($1.item ?? "") }
+    default:
+      return nil
     }
   }
 
-  private static func partialErrors(
-    in error: NSError
-  ) -> [(item: String, error: NSError)] {
-    guard let partial = error.userInfo[
-      CKPartialErrorsByItemIDKey
-    ] as? NSDictionary else {
-      return []
-    }
+  private static func title(for error: NSError) -> String {
+    let title = "\(error.domain) (\(error.code))"
+    guard let name = codeName(for: error) else { return title }
+    return "\(title) \(name)"
+  }
 
-    return partial.allKeys.compactMap { key in
-      guard let child = partial.object(forKey: key) as? NSError else {
-        return nil
-      }
-      return (String(describing: key), child)
-    }.sorted { $0.item < $1.item }
+  private static func codeSummary(for errors: [NSError]) -> String {
+    var counts: [String: Int] = [:]
+    for error in errors {
+      let name = codeName(for: error)
+        ?? "\(error.domain) \(error.code)"
+      counts[name, default: 0] += 1
+    }
+    return counts
+      .sorted { ($1.value, $0.key) < ($0.value, $1.key) }
+      .map { "\($0.key) ×\($0.value)" }
+      .joined(separator: ", ")
+  }
+
+  private static func codeName(for error: NSError) -> String? {
+    ErrorCodeCatalog.entry(for: error)?.name
+  }
+
+  /// Keeps values such as managed objects or record dumps from
+  /// overwhelming the rest of the report.
+  private static func truncated(
+    _ text: String,
+    limit: Int = 300
+  ) -> String {
+    guard text.count > limit else { return text }
+    return text.prefix(limit) + "… (\(text.count - limit) more characters)"
+  }
+
+  private static func describe(_ item: Any) -> String {
+    switch item {
+    case let recordID as CKRecord.ID:
+      "\(recordID.recordName) (zone: \(recordID.zoneID.zoneName))"
+    case let zoneID as CKRecordZone.ID:
+      "zone \(zoneID.zoneName) (owner: \(zoneID.ownerName))"
+    case let record as CKRecord:
+      "\(record.recordType) \(describe(record.recordID))"
+    case let string as String:
+      string
+    default:
+      String(describing: item)
+    }
   }
 }

@@ -1230,6 +1230,55 @@ struct CloudSyncMonitorTests {
   }
 
   @Test
+  func errorCatalogCoversEveryCloudKitCode() {
+    // CKError.h defines codes 1 through 37 as of the iOS 27 SDK.
+    let missing = (1...37).filter { code in
+      ErrorCodeCatalog.entry(
+        for: NSError(domain: CKError.errorDomain, code: code)
+      ) == nil
+    }
+    #expect(missing.isEmpty)
+  }
+
+  @Test
+  func errorFormatterIncludesErrorsNestedUnderAnyKey() {
+    let posix = NSError(domain: NSPOSIXErrorDomain, code: Int(ENOENT))
+    let zoneBusy = NSError(
+      domain: CKError.errorDomain,
+      code: CKError.zoneBusy.rawValue
+    )
+    let outer = NSError(
+      domain: NSCocoaErrorDomain,
+      code: NSPersistentStoreSaveError,
+      userInfo: [
+        NSUnderlyingErrorKey: posix,
+        "MirroringErrors": [zoneBusy, zoneBusy],
+        NSDebugDescriptionErrorKey: "Export failed mid-batch",
+        NSAffectedObjectsErrorKey: [String](repeating: "x", count: 500)
+          .joined(),
+        "EmptyErrors": [NSError](),
+      ]
+    )
+
+    let details = CloudSyncErrorFormatter.details(for: outer)
+
+    #expect(details.contains(
+      "NSCocoaErrorDomain (\(NSPersistentStoreSaveError)) "
+        + "persistentStoreSave"
+    ))
+    #expect(details.contains("Debug description: Export failed mid-batch"))
+    #expect(details.contains("Underlying error:"))
+    #expect(details.contains("NSPOSIXErrorDomain (2): "))
+    #expect(details.contains("MirroringErrors: 2 (zoneBusy ×2)"))
+    #expect(details.contains("CKErrorDomain (23) zoneBusy"))
+    #expect(details.contains("About: The server is too busy"))
+    #expect(details.contains("About: An unclassified error occurred"))
+    #expect(details.contains("… (200 more characters)"))
+    #expect(!details.contains("EmptyErrors"))
+    #expect(!details.contains("Reason: No such file or directory"))
+  }
+
+  @Test
   func errorFormatterIncludesBridgedPartialErrors() {
     let recordID = CKRecord.ID(recordName: "more-recent-ipad-data")
     let rejectedRecord = NSError(
@@ -1248,13 +1297,19 @@ struct CloudSyncMonitorTests {
       code: CKError.partialFailure.rawValue,
       userInfo: [
         CKPartialErrorsByItemIDKey: partialErrors,
+        "RequestUUID": "request-1234",
       ]
     )
 
     let details = CloudSyncErrorFormatter.details(for: outer)
 
-    #expect(details.contains("more-recent-ipad-data"))
-    #expect(details.contains("CKErrorDomain (15)"))
+    #expect(details.contains("CKErrorDomain (2) partialFailure"))
+    #expect(details.contains("Failed items: 1 (serverRejectedRequest ×1)"))
+    #expect(details.contains("RequestUUID: request-1234"))
+    #expect(details.contains(
+      "more-recent-ipad-data (zone: _defaultZone)"
+    ))
+    #expect(details.contains("CKErrorDomain (15) serverRejectedRequest"))
     #expect(details.contains("Field is not in the production schema"))
   }
 }
