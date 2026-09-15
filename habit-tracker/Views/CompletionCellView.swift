@@ -14,6 +14,7 @@ struct CompletionCellView: View {
   let allowsTapToComplete: Bool
 
   static let skippedYellowOpacity = 0.35
+  static let failedRedOpacity = 0.35
 
   @State private var isEditingNote = false
   /// Held until the editor has finished dismissing. Writing
@@ -76,6 +77,11 @@ struct CompletionCellView: View {
         for: .skipped,
         title: "Skip",
         systemImage: "minus.circle"
+      )
+      menuButton(
+        for: .failed,
+        title: "Fail",
+        systemImage: "xmark"
       )
       Divider()
       Button {
@@ -159,6 +165,8 @@ struct CompletionCellView: View {
       )
     case .skipped:
       Color.yellow.opacity(Self.skippedYellowOpacity)
+    case .failed:
+      Color.red.opacity(Self.failedRedOpacity)
     case .unmarked:
       Color.secondary.opacity(0.08)
     }

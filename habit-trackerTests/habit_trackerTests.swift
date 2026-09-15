@@ -146,6 +146,56 @@ struct HabitStreakTests {
     ) == 30)
   }
 
+  @Test func failedDaysCountAsExceptions() {
+    let completedEntries = entries(
+      count: 27,
+      endingAt: DayBoundary.yesterdayKey(from: todayKey)
+    )
+    func entry(_ state: CompletionState) -> HabitStreak.Entry {
+      HabitStreak.Entry(
+        dateKey: dateKey(daysBeforeToday: 28),
+        state: state,
+        updatedAt: .now
+      )
+    }
+
+    // Completing day 28 leaves two exceptions in thirty
+    // days; failing it makes a third, like leaving it blank.
+    #expect(streakLength(
+      completedEntries: completedEntries + [entry(.completed)]
+    ) == 30)
+    #expect(streakLength(
+      completedEntries: completedEntries + [entry(.failed)]
+    ) == nil)
+  }
+
+  @Test func failedCurrentDayCountsAsException() {
+    // Five misses fill an established streak's allowance.
+    let oldCompletions = entries(
+      count: 100,
+      endingAt: dateKey(daysBeforeToday: 6)
+    )
+    let unmarkedToday = HabitStreak.Entry(
+      dateKey: todayKey,
+      state: .unmarked,
+      updatedAt: .now
+    )
+    let failedToday = HabitStreak.Entry(
+      dateKey: todayKey,
+      state: .failed,
+      updatedAt: .now
+    )
+
+    // An unmarked today could still be completed, but a
+    // failure is final and immediately uses an exception.
+    #expect(streakLength(
+      completedEntries: oldCompletions + [unmarkedToday]
+    ) == 105)
+    #expect(streakLength(
+      completedEntries: oldCompletions + [failedToday]
+    ) == nil)
+  }
+
   @Test func sixthExceptionResetsAnOldStreak() {
     let beforeSixMisses = dateKey(daysBeforeToday: 7)
     let oldCompletions = entries(
@@ -453,6 +503,9 @@ struct CompletionModelTests {
     completion.state = .skipped
     #expect(completion.state == .skipped)
 
+    completion.state = .failed
+    #expect(completion.state == .failed)
+
     completion.state = .unmarked
     #expect(completion.state == .unmarked)
 
@@ -472,6 +525,11 @@ struct CompletionModelTests {
     completion.state = .completed
     #expect(completion.isCompleted)
 
+    // A failure, too, reads as unmarked to those clients.
+    completion.state = .failed
+    #expect(completion.isCompleted == false)
+
+    completion.state = .completed
     completion.state = .unmarked
     #expect(completion.isCompleted == false)
   }
@@ -845,6 +903,7 @@ struct HabitDataExportTests {
       dateKey: "2026-07-20",
       goal: goal
     )
+    inRangeCompletion.state = .failed
     inRangeCompletion.note = "Traveling"
     let outOfRangeCompletion = Completion(
       dateKey: "2026-07-21",
@@ -872,7 +931,7 @@ struct HabitDataExportTests {
     )
     #expect(export.completions.first?.goalID == goal.id)
     #expect(
-      export.completions.first?.state == .completed
+      export.completions.first?.state == .failed
     )
     #expect(export.completions.first?.note == "Traveling")
   }

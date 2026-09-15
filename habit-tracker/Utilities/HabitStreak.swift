@@ -21,9 +21,14 @@ enum HabitStreak {
     effectiveTodayKey: String
   ) -> Int? {
     let completionByDate = latestEntriesByDate(entries)
-    let isCurrentDayCompleted =
-      completionByDate[effectiveTodayKey]?.state == .completed
-    var dateKey = isCurrentDayCompleted
+    // Today only counts once it has been resolved. An
+    // unmarked today may still be completed, but an explicit
+    // failure is final, so it counts as an exception now.
+    let currentDayState =
+      completionByDate[effectiveTodayKey]?.state
+    let isCurrentDayResolved = currentDayState == .completed
+      || currentDayState == .failed
+    var dateKey = isCurrentDayResolved
       ? effectiveTodayKey
       : DayBoundary.yesterdayKey(from: effectiveTodayKey)
     var eligibleDays = 0

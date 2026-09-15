@@ -187,6 +187,27 @@ final class habit_trackerUITests: XCTestCase {
   }
 
   @MainActor
+  func testCellContextMenuFails() throws {
+    addGoalWithName("Floss")
+
+    longPressTodayCell(forGoalNamed: "Floss")
+    let failItem = menuItem(named: "Fail")
+    XCTAssertTrue(
+      failItem.waitForExistence(timeout: defaultTimeout),
+      "Long pressing a cell should offer Fail"
+    )
+    tap(failItem)
+
+    longPressTodayCell(forGoalNamed: "Floss")
+    let clearFail = menuItem(named: "Clear Fail")
+    XCTAssertTrue(
+      clearFail.waitForExistence(timeout: defaultTimeout),
+      "A failed cell should offer to clear the failure"
+    )
+    tap(clearFail)
+  }
+
+  @MainActor
   func testCellContextMenuAddsAndEditsNote() throws {
     addGoalWithName("Journal")
 

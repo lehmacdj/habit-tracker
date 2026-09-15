@@ -382,6 +382,10 @@ enum HabitSchemaV5: VersionedSchema {
 }
 
 /// Adds `Completion.note`, freeform text explaining a mark.
+/// The `failed` completion state arrived alongside it but
+/// needs no schema change: it is just another
+/// `stateRawValue`, which clients predating it read through
+/// the legacy `isCompleted` fallback as unmarked.
 enum HabitSchemaV6: VersionedSchema {
   static let versionIdentifier =
     Schema.Version(6, 0, 0)
