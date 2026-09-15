@@ -31,6 +31,10 @@ final class Completion {
 
   var updatedAt: Date = Date()
 
+  /// Freeform context about why the day went the way it did.
+  /// Empty means there is no note.
+  var note: String = ""
+
   var goal: Goal?
 
   init(dateKey: String, goal: Goal) {
@@ -54,5 +58,10 @@ final class Completion {
       stateRawValue = newValue.rawValue
       isCompleted = newValue == .completed
     }
+  }
+
+  var hasNote: Bool {
+    !note.trimmingCharacters(in: .whitespacesAndNewlines)
+      .isEmpty
   }
 }

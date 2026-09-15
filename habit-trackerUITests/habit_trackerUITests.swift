@@ -187,6 +187,68 @@ final class habit_trackerUITests: XCTestCase {
   }
 
   @MainActor
+  func testCellContextMenuAddsAndEditsNote() throws {
+    addGoalWithName("Journal")
+
+    let indicator = app.descendants(matching: .any)
+      .matching(NSPredicate(format: "value == 'Has note'"))
+      .firstMatch
+    XCTAssertFalse(
+      indicator.exists,
+      "A cell without a note should not show the indicator"
+    )
+
+    longPressTodayCell(forGoalNamed: "Journal")
+    let addNote = menuItem(named: "Add Note")
+    XCTAssertTrue(
+      addNote.waitForExistence(timeout: defaultTimeout),
+      "Long pressing a cell should offer Add Note"
+    )
+    tap(addNote)
+
+    let editor = app.textViews["completionNoteEditor"]
+    XCTAssertTrue(
+      editor.waitForExistence(timeout: defaultTimeout),
+      "Add Note should open the note editor"
+    )
+    editor.typeText("Wrote before bed")
+    tap(app.buttons["saveCompletionNoteButton"])
+
+    XCTAssertTrue(
+      indicator.waitForExistence(timeout: defaultTimeout),
+      "A cell with a note should show the indicator"
+    )
+
+    longPressTodayCell(forGoalNamed: "Journal")
+    let editNote = menuItem(named: "Edit Note")
+    XCTAssertTrue(
+      editNote.waitForExistence(timeout: defaultTimeout),
+      "A cell with a note should offer Edit Note"
+    )
+    tap(editNote)
+
+    XCTAssertTrue(
+      editor.waitForExistence(timeout: defaultTimeout),
+      "Edit Note should open the note editor"
+    )
+    let value = editor.value as? String ?? ""
+    XCTAssertTrue(
+      value.contains("Wrote before bed"),
+      "The editor should show the saved note, got: \(value)"
+    )
+
+    tap(app.buttons["Cancel"])
+    XCTAssertTrue(
+      editor.waitForNonExistence(timeout: defaultTimeout),
+      "Cancel should dismiss the note editor"
+    )
+    XCTAssertTrue(
+      indicator.exists,
+      "Cancelling an edit should keep the existing note"
+    )
+  }
+
+  @MainActor
   func testExportSheetOpens() throws {
     let exportButton = app.buttons["exportHabitDataButton"]
     XCTAssertTrue(

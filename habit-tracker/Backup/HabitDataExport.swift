@@ -46,6 +46,7 @@ struct HabitDataExport: Codable, Sendable {
     let dateKey: String
     let isCompleted: Bool
     let state: CompletionState
+    let note: String
     let updatedAt: Date
     let goalID: UUID?
   }
@@ -160,6 +161,7 @@ private extension HabitDataExport.CompletionRecord {
     dateKey = completion.dateKey
     isCompleted = completion.isCompleted
     state = completion.state
+    note = completion.note
     updatedAt = completion.updatedAt
     goalID = completion.goal?.id
   }

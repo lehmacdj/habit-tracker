@@ -476,6 +476,26 @@ struct CompletionModelTests {
     #expect(completion.isCompleted == false)
   }
 
+  @Test func noteIsIndependentOfState() {
+    let completion = makeCompletion()
+    #expect(completion.note.isEmpty)
+    #expect(!completion.hasNote)
+
+    completion.note = "Rained, ran indoors"
+    completion.state = .skipped
+    #expect(completion.hasNote)
+    #expect(completion.note == "Rained, ran indoors")
+
+    completion.state = .unmarked
+    #expect(completion.hasNote)
+  }
+
+  @Test func whitespaceOnlyNoteIsNotANote() {
+    let completion = makeCompletion()
+    completion.note = "  \n\t "
+    #expect(!completion.hasNote)
+  }
+
   @Test func recordsWithoutAStateFallBackToTheLegacyFlag() {
     // How rows written before skipping existed, and records
     // synced from a client that predates it, arrive.
@@ -643,10 +663,10 @@ struct DayModelTests {
 
     try autoreleasepool {
       let schema = Schema(
-        versionedSchema: HabitSchemaV5.self
+        versionedSchema: HabitSchemaV6.self
       )
       let configuration = ModelConfiguration(
-        "MigrationTestV5",
+        "MigrationTestV6",
         schema: schema,
         url: storeURL,
         cloudKitDatabase: .none
@@ -699,6 +719,9 @@ struct DayModelTests {
       #expect(migrated.stateRawValue == "unmarked")
       #expect(migratedCompleted.state == .completed)
       #expect(migratedCompleted.stateRawValue == "completed")
+
+      // Version six adds notes, which start out empty.
+      #expect(completions.allSatisfy { $0.note.isEmpty })
     }
   }
 
@@ -727,6 +750,11 @@ struct DayModelTests {
     let versionFive = try #require(
       NSManagedObjectModel.makeManagedObjectModel(
         for: HabitSchemaV5.models
+      )
+    )
+    let versionSix = try #require(
+      NSManagedObjectModel.makeManagedObjectModel(
+        for: HabitSchemaV6.models
       )
     )
 
@@ -765,6 +793,42 @@ struct DayModelTests {
       versionFour.entityVersionHashesByName["Completion"]
         != versionFive.entityVersionHashesByName["Completion"]
     )
+    // Version six only adds Completion.note.
+    for entityName in ["Goal", "Day"] {
+      #expect(
+        versionFive.entityVersionHashesByName[entityName]
+          == versionSix.entityVersionHashesByName[entityName]
+      )
+    }
+    #expect(
+      versionFive.entityVersionHashesByName["Completion"]
+        != versionSix.entityVersionHashesByName["Completion"]
+    )
+  }
+
+  @Test
+  func frozenVersionFiveMatchesItsCloudKitShape() throws {
+    // Freezing version five must not change what it was
+    // when it referenced the live models: Completion then
+    // had exactly these attributes.
+    let versionFive = try #require(
+      NSManagedObjectModel.makeManagedObjectModel(
+        for: HabitSchemaV5.models
+      )
+    )
+    let completion = try #require(
+      versionFive.entitiesByName["Completion"]
+    )
+
+    #expect(
+      Set(completion.attributesByName.keys) == [
+        "id",
+        "dateKey",
+        "isCompleted",
+        "stateRawValue",
+        "updatedAt",
+      ]
+    )
   }
 }
 
@@ -781,6 +845,7 @@ struct HabitDataExportTests {
       dateKey: "2026-07-20",
       goal: goal
     )
+    inRangeCompletion.note = "Traveling"
     let outOfRangeCompletion = Completion(
       dateKey: "2026-07-21",
       goal: goal
@@ -809,6 +874,7 @@ struct HabitDataExportTests {
     #expect(
       export.completions.first?.state == .completed
     )
+    #expect(export.completions.first?.note == "Traveling")
   }
 
   @Test @MainActor

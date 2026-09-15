@@ -320,6 +320,77 @@ enum HabitSchemaV5: VersionedSchema {
     Completion.self,
     Day.self,
   ]
+
+  @Model
+  final class Goal {
+    var id: UUID = UUID()
+    var name: String = ""
+    var sortOrder: Int = 0
+    var createdAt: Date = Date()
+    var isDeleted: Bool = false
+    var archivedAt: Date?
+    var nameHistoryJSON: String = "[]"
+
+    @Relationship(
+      deleteRule: .cascade,
+      inverse: \Completion.goal
+    )
+    var completions: [Completion]? = []
+
+    init(name: String = "", sortOrder: Int = 0) {
+      self.id = UUID()
+      self.name = name
+      self.sortOrder = sortOrder
+      self.createdAt = Date()
+    }
+  }
+
+  @Model
+  final class Completion {
+    var id: UUID = UUID()
+    var dateKey: String = ""
+    var isCompleted: Bool = true
+    var stateRawValue: String = ""
+    var updatedAt: Date = Date()
+    var goal: Goal?
+
+    init(dateKey: String, goal: Goal) {
+      self.id = UUID()
+      self.dateKey = dateKey
+      self.isCompleted = true
+      self.stateRawValue = "completed"
+      self.updatedAt = Date()
+      self.goal = goal
+    }
+  }
+
+  @Model
+  final class Day {
+    var id: UUID = UUID()
+    var dateKey: String = ""
+    var isHidden: Bool = false
+    var createdAt: Date = Date()
+    var intentionText: String = ""
+    var intentionUpdatedAt: Date?
+
+    init(dateKey: String) {
+      self.id = UUID()
+      self.dateKey = dateKey
+      self.createdAt = Date()
+    }
+  }
+}
+
+/// Adds `Completion.note`, freeform text explaining a mark.
+enum HabitSchemaV6: VersionedSchema {
+  static let versionIdentifier =
+    Schema.Version(6, 0, 0)
+
+  static let models: [any PersistentModel.Type] = [
+    Goal.self,
+    Completion.self,
+    Day.self,
+  ]
 }
 
 enum HabitSchemaMigrationPlan: SchemaMigrationPlan {
@@ -329,6 +400,7 @@ enum HabitSchemaMigrationPlan: SchemaMigrationPlan {
     HabitSchemaV3.self,
     HabitSchemaV4.self,
     HabitSchemaV5.self,
+    HabitSchemaV6.self,
   ]
 
   static let stages: [MigrationStage] = [
@@ -389,17 +461,22 @@ enum HabitSchemaMigrationPlan: SchemaMigrationPlan {
       willMigrate: nil
     ) { context in
       let completions = try context.fetch(
-        FetchDescriptor<Completion>()
+        FetchDescriptor<HabitSchemaV5.Completion>()
       )
 
       for completion in completions
       where completion.stateRawValue.isEmpty {
-        completion.state = completion.isCompleted
+        let state: CompletionState = completion.isCompleted
           ? .completed
           : .unmarked
+        completion.stateRawValue = state.rawValue
       }
 
       try context.save()
     },
+    .lightweight(
+      fromVersion: HabitSchemaV5.self,
+      toVersion: HabitSchemaV6.self
+    ),
   ]
 }

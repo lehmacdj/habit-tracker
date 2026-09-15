@@ -14,7 +14,7 @@ struct habit_trackerApp: App {
     "iCloud.is.devin.habit-tracker"
 
   private static let modelTypes =
-    HabitSchemaV5.models
+    HabitSchemaV6.models
 
   init() {
     #if os(iOS)
@@ -44,7 +44,7 @@ struct habit_trackerApp: App {
 
   var sharedModelContainer: ModelContainer = {
     let schema = Schema(
-      versionedSchema: HabitSchemaV5.self
+      versionedSchema: HabitSchemaV6.self
     )
     let usesEphemeralStore = Self.isTesting
       || Self.isSchemaInitializationRun
