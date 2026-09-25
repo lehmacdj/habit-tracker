@@ -57,10 +57,18 @@ enum DayBoundary {
   /// Formats a dateKey for display, e.g. "Mon\n3/16"
   static func displayString(for key: String) -> String {
     guard let date = displayDate(for: key) else { return key }
-    let dayOfWeek = DateFormatter()
-    dayOfWeek.dateFormat = "EEE"
-    let monthDay = DateFormatter()
-    monthDay.dateFormat = "M/d"
-    return "\(dayOfWeek.string(from: date))\n\(monthDay.string(from: date))"
+    return "\(weekdayFormatter.string(from: date))\n"
+      + monthDayFormatter.string(from: date)
+  }
+
+  private static let weekdayFormatter = displayFormatter("EEE")
+  private static let monthDayFormatter = displayFormatter("M/d")
+
+  private static func displayFormatter(_ format: String) -> DateFormatter {
+    let formatter = DateFormatter()
+    formatter.locale = .autoupdatingCurrent
+    formatter.timeZone = .autoupdatingCurrent
+    formatter.dateFormat = format
+    return formatter
   }
 }

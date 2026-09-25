@@ -105,6 +105,9 @@ struct GoalNameView: View {
   }
 
   private func commitRename() {
+    // Relinquish focus before disabling this text view. Otherwise sheet
+    // presentation can keep trying to restore a disabled first responder.
+    isFocused = false
     let trimmed = editText.trimmingCharacters(
       in: .whitespacesAndNewlines
     )

@@ -83,7 +83,11 @@ final class habit_trackerUITests: XCTestCase {
       withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)
     ).doubleClick()
     #else
-    goalField.doubleTap()
+    // The editable field is disabled until its interaction overlay gets
+    // the gesture. Tap the overlay's location, not the disabled AX field.
+    goalField.coordinate(
+      withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)
+    ).doubleTap()
     #endif
 
     // The field should now be enabled/focused
@@ -327,8 +331,10 @@ final class habit_trackerUITests: XCTestCase {
     addGoalWithName("Kept")
 
     archiveGoal(named: "Retired")
-    XCTAssertNil(
-      waitUntil { findGoalField(withName: "Retired") },
+    XCTAssertNotNil(
+      waitUntil {
+        findGoalField(withName: "Retired") == nil ? app : nil
+      },
       "Archived goal should leave the grid"
     )
 
@@ -373,6 +379,69 @@ final class habit_trackerUITests: XCTestCase {
   }
 
   // MARK: - Helpers
+
+  #if os(iOS)
+  @MainActor
+  func testHistoryWindowScrollsBackAndRetainsEdits() throws {
+    app.terminate()
+    app.launchArguments = ["--uitesting", "--uitesting-history"]
+    app.launch()
+    let grid = app.scrollViews["habitGrid"]
+    XCTAssertTrue(grid.waitForExistence(timeout: 5))
+    let goalID = "00000000-0000-0000-0000-000000000001"
+    let todayKey = DayBoundaryKey.today()
+    let formatter = DateFormatter()
+    formatter.dateFormat = "yyyy-MM-dd"
+    formatter.locale = Locale(identifier: "en_US_POSIX")
+    let today = try XCTUnwrap(formatter.date(from: todayKey))
+    let oldestKey = formatter.string(from: try XCTUnwrap(
+      Calendar.current.date(byAdding: .day, value: -59, to: today)
+    ))
+
+    let todayCell = app.buttons["completion-\(goalID)-\(todayKey)"]
+    XCTAssertTrue(todayCell.waitForExistence(timeout: 5))
+    tap(todayCell)
+    todayCell.press(forDuration: 1.2)
+    XCTAssertTrue(menuItem(named: "Clear Complete")
+      .waitForExistence(timeout: defaultTimeout))
+    tap(menuItem(named: "Clear Complete"))
+
+    func reach(_ key: String, backwards: Bool) {
+      let header = app.buttons["dateHeader-\(key)"]
+      for _ in 0..<22 {
+        if header.exists && header.isHittable { break }
+        if backwards { grid.swipeRight() } else { grid.swipeLeft() }
+      }
+      XCTAssertTrue(header.exists && header.isHittable)
+      let headers = app.buttons.matching(NSPredicate(
+        format: "identifier BEGINSWITH 'dateHeader-'"
+      ))
+      XCTAssertLessThan(headers.count, 30,
+        "Scrolling must retire offscreen headers")
+    }
+
+    reach(oldestKey, backwards: true)
+    let oldCell = app.descendants(matching: .any)
+      .matching(identifier: "completion-\(goalID)-\(oldestKey)").firstMatch
+    XCTAssertTrue(oldCell.exists)
+    oldCell.press(forDuration: 1.2)
+    tap(menuItem(named: "Edit Note"))
+    let editor = app.textViews["completionNoteEditor"]
+    XCTAssertTrue(editor.waitForExistence(timeout: defaultTimeout))
+    XCTAssertTrue((editor.value as? String ?? "").contains("Oldest note"))
+    editor.typeText(" updated")
+    tap(app.buttons["saveCompletionNoteButton"])
+    XCTAssertTrue(editor.waitForNonExistence(timeout: defaultTimeout))
+
+    reach(todayKey, backwards: false)
+    reach(oldestKey, backwards: true)
+    oldCell.press(forDuration: 1.2)
+    tap(menuItem(named: "Edit Note"))
+    XCTAssertTrue(editor.waitForExistence(timeout: defaultTimeout))
+    XCTAssertTrue((editor.value as? String ?? "").contains("updated"))
+    tap(app.buttons["Cancel"])
+  }
+  #endif
 
   /// Long presses the plus button and picks the unarchive
   /// item from the context menu it opens.

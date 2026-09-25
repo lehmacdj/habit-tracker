@@ -3,9 +3,8 @@ import SwiftData
 
 struct CompletionCellView: View {
   @Environment(\.modelContext) private var modelContext
-  @Query private var completions: [Completion]
+  let completions: [Completion]
 
-  let goalId: UUID
   let goal: Goal
   let dateKey: String
   /// Today and yesterday complete with a single tap. Every
@@ -16,34 +15,11 @@ struct CompletionCellView: View {
   static let skippedYellowOpacity = 0.35
   static let failedRedOpacity = 0.35
 
-  @State private var isEditingNote = false
-  /// Held until the editor has finished dismissing. Writing
-  /// the model mid-dismissal re-renders the cell hosting the
-  /// sheet while the text view is still resigning focus.
-  @State private var pendingNote: String?
-
-  init(
-    goal: Goal,
-    dateKey: String,
-    allowsTapToComplete: Bool
-  ) {
-    self.goal = goal
-    self.goalId = goal.id
-    self.dateKey = dateKey
-    self.allowsTapToComplete = allowsTapToComplete
-    let gid = goal.id
-    let dk = dateKey
-    _completions = Query(
-      filter: #Predicate<Completion> {
-        $0.goal?.id == gid && $0.dateKey == dk
-      },
-      sort: \Completion.updatedAt,
-      order: .reverse
-    )
-  }
+  let onEditNote: () -> Void
+  @State private var editError: String?
 
   private var completion: Completion? {
-    completions.first
+    CompletionRecords.latest(completions)
   }
 
   private var state: CompletionState {
@@ -85,7 +61,7 @@ struct CompletionCellView: View {
       )
       Divider()
       Button {
-        isEditingNote = true
+        onEditNote()
       } label: {
         Label(
           hasNote ? "Edit Note" : "Add Note",
@@ -95,17 +71,14 @@ struct CompletionCellView: View {
         )
       }
     }
-    .sheet(isPresented: $isEditingNote, onDismiss: {
-      guard let note = pendingNote else { return }
-      pendingNote = nil
-      saveNote(note)
-    }) {
-      CompletionNoteEditor(
-        goalName: goal.name,
-        dateKey: dateKey,
-        initialText: completion?.note ?? "",
-        onSave: { pendingNote = $0 }
-      )
+    .accessibilityIdentifier("completion-\(goal.id)-\(dateKey)")
+    .alert("Could Not Update Habit", isPresented: Binding(
+      get: { editError != nil },
+      set: { if !$0 { editError = nil } }
+    )) {
+      Button("OK") { editError = nil }
+    } message: {
+      Text(editError ?? "Please try again.")
     }
     #if os(iOS)
     .sensoryFeedback(.impact, trigger: state)
@@ -173,55 +146,18 @@ struct CompletionCellView: View {
   }
 
   private func apply(_ target: CompletionState) {
-    let newState: CompletionState =
-      state == target ? .unmarked : target
-
-    guard !completions.isEmpty else {
-      guard newState != .unmarked else { return }
-      let completion = Completion(
-        dateKey: dateKey,
-        goal: goal
+    do {
+      try CompletionRecords.toggle(
+        target, goal: goal, dateKey: dateKey, in: modelContext
       )
-      completion.state = newState
-      modelContext.insert(completion)
-      return
-    }
-
-    let now = Date()
-    for completion in completions {
-      completion.state = newState
-      completion.updatedAt = now
-    }
-  }
-
-  /// Notes can be added to a cell that has no mark yet, in
-  /// which case the note lives on an unmarked record.
-  private func saveNote(_ text: String) {
-    let note = text.trimmingCharacters(
-      in: .whitespacesAndNewlines
-    ).isEmpty ? "" : text
-
-    guard !completions.isEmpty else {
-      guard !note.isEmpty else { return }
-      let completion = Completion(
-        dateKey: dateKey,
-        goal: goal
-      )
-      completion.state = .unmarked
-      completion.note = note
-      modelContext.insert(completion)
-      return
-    }
-
-    let now = Date()
-    for completion in completions {
-      completion.note = note
-      completion.updatedAt = now
+    } catch {
+      editError = "The habit could not be updated. "
+        + error.localizedDescription
     }
   }
 }
 
-private struct CompletionNoteEditor: View {
+struct CompletionNoteEditor: View {
   @Environment(\.dismiss) private var dismiss
 
   let goalName: String
@@ -288,7 +224,14 @@ private struct CompletionNoteEditor: View {
           .accessibilityIdentifier("saveCompletionNoteButton")
         }
       }
-      .onAppear {
+      .task {
+        // Context-menu dismissal can steal focus from a sheet that is
+        // still presenting. Request it after that transition completes.
+        do {
+          try await Task.sleep(for: .milliseconds(300))
+        } catch {
+          return
+        }
         isFocused = true
       }
     }

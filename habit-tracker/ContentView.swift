@@ -123,19 +123,23 @@ struct ContentView: View {
     .onAppear {
       cloudSyncMonitor.refreshAccountStatus()
       ensureTodayExists()
-      syncWidgetSummary()
       saveWeeklyBackupIfNeeded()
     }
     .onChange(of: scenePhase) { _, newPhase in
       if newPhase == .active {
         cloudSyncMonitor.refreshAccountStatus()
         ensureTodayExists()
-        syncWidgetSummary()
         saveWeeklyBackupIfNeeded()
       }
     }
-    .onChange(of: widgetSummaryFingerprint) {
-      syncWidgetSummary()
+    .background {
+      WidgetSummaryUpdater(
+        dateKey: effectiveTodayKey, goals: goals,
+        days: allDays.filter { $0.dateKey == effectiveTodayKey },
+        completions: allCompletions.filter {
+          $0.dateKey == effectiveTodayKey
+        }
+      )
     }
     .sheet(isPresented: $isShowingExport) {
       ExportDataView()
@@ -148,41 +152,11 @@ struct ContentView: View {
     }
   }
 
-  private var todayIntentionText: String? {
-    let matchingDays = allDays.filter {
-      $0.dateKey == effectiveTodayKey
-    }
-    let day = matchingDays.max {
-      ($0.intentionUpdatedAt ?? .distantPast)
-        < ($1.intentionUpdatedAt ?? .distantPast)
-    }
-    let trimmed = day?.intentionText.trimmingCharacters(
-      in: .whitespacesAndNewlines
-    ) ?? ""
-    return trimmed.isEmpty ? nil : trimmed
-  }
-
   private var hiddenDateKeys: Set<String> {
     let hiddenKeys = Set(
       allDays.filter(\.isHidden).map(\.dateKey)
     )
     return hiddenKeys.subtracting(visibleDays.map(\.dateKey))
-  }
-
-  private var completedGoalsTodayCount: Int {
-    goals.filter { goal in
-      goal.completions?.contains {
-        $0.dateKey == effectiveTodayKey && $0.isCompleted
-      } ?? false
-    }.count
-  }
-
-  private var widgetSummaryFingerprint: String {
-    [
-      effectiveTodayKey,
-      todayIntentionText ?? "",
-      String(completedGoalsTodayCount)
-    ].joined(separator: "|")
   }
 
   /// Ensures Day records exist for today and the previous day.
@@ -250,14 +224,6 @@ struct ContentView: View {
     } else {
       modelContext.insert(Day(dateKey: dateKey))
     }
-  }
-
-  private func syncWidgetSummary() {
-    HabitWidgetSummaryStore.save(
-      dateKey: effectiveTodayKey,
-      todayIntention: todayIntentionText,
-      completedCount: completedGoalsTodayCount
-    )
   }
 
   private func saveWeeklyBackupIfNeeded() {

@@ -1,8 +1,8 @@
 # Habit checkoff performance profile — 2026-09-25
 
 Baseline: `c9b4fd87` (`Add an explicit failed state to habit cells`).
-This commit contains a profiling harness and proposed improvements, not
-production optimizations.
+This report records the initial profiling investigation. The follow-up
+implementation and before/after results are in [IMPLEMENTED.md](IMPLEMENTED.md).
 
 ## Result
 

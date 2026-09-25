@@ -65,11 +65,18 @@ struct habit_trackerApp: App {
         )
       }
 
-      return try ModelContainer(
+      let container = try ModelContainer(
         for: schema,
         migrationPlan: HabitSchemaMigrationPlan.self,
         configurations: [config]
       )
+      #if DEBUG
+      if Self.isTesting,
+        ProcessInfo.processInfo.arguments.contains("--uitesting-history") {
+        try UITestHistory.seed(in: container.mainContext)
+      }
+      #endif
+      return container
     } catch {
       fatalError(
         "Could not create ModelContainer: \(error)"
