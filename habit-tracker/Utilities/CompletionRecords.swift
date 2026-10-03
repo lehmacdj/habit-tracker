@@ -34,15 +34,16 @@ enum CompletionRecords {
     ))
   }
 
+  @discardableResult
   static func toggle(
     _ target: CompletionState, goal: Goal, dateKey: String,
     in context: ModelContext
-  ) throws {
+  ) throws -> (previous: CompletionState, current: CompletionState) {
     let records = try fetch(goal: goal, dateKey: dateKey, in: context)
     let state = latest(records)?.state ?? .unmarked
     let newState: CompletionState = state == target ? .unmarked : target
     if records.isEmpty {
-      guard newState != .unmarked else { return }
+      guard newState != .unmarked else { return (state, newState) }
       let record = Completion(dateKey: dateKey, goal: goal)
       record.state = newState
       context.insert(record)
@@ -53,6 +54,7 @@ enum CompletionRecords {
         record.updatedAt = now
       }
     }
+    return (state, newState)
   }
 
   static func saveNote(

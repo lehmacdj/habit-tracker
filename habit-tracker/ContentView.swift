@@ -32,6 +32,9 @@ struct ContentView: View {
     DayBoundary.dateKey()
   @State private var selectedDateKey: String =
     DayBoundary.dateKey()
+  @State private var isShowingToday = true
+  @State private var todayIsReady = false
+  @State private var todayVisit = UUID()
   @State private var isShowingExport = false
   @State private var isShowingArchive = false
   @State private var isShowingSyncStatus = false
@@ -40,46 +43,30 @@ struct ContentView: View {
   @FocusState private var isIntentionFocused: Bool
 
   var body: some View {
-    ZStack(alignment: .topTrailing) {
-      VStack(spacing: 0) {
-        IntentionView(
-          dateKey: selectedDateKey,
-          todayKey: effectiveTodayKey,
-          isFocused: $isIntentionFocused
-        )
-        .id(selectedDateKey)
-
-        HabitGridView(
-          goals: goals,
-          visibleDays: visibleDays,
-          completions: allCompletions,
-          hiddenDateKeys: hiddenDateKeys,
-          effectiveTodayKey: effectiveTodayKey,
-          selectedDateKey: selectedDateKey,
-          onSelectDate: { key in
-            isIntentionFocused = false
-            selectedDateKey = key
-          },
-          onDeleteDate: { day in
-            deleteDate(day.dateKey)
-          },
-          onSpawnTomorrow: {
-            spawnTomorrow()
-          },
-          onInsertDate: { key in
-            insertDate(key)
-          },
-          onGridTapped: {
-            isIntentionFocused = false
-          },
-          onShowArchive: {
-            isIntentionFocused = false
-            isShowingArchive = true
-          }
-        )
-      }
-
+    VStack(spacing: 0) {
       HStack(spacing: 0) {
+        if !isShowingToday || todayIsReady {
+          Button {
+            isIntentionFocused = false
+            if isShowingToday {
+              isShowingToday = false
+              selectedDateKey = effectiveTodayKey
+            } else {
+              showToday()
+            }
+          } label: {
+            Label(
+              isShowingToday ? "Grid" : "Today",
+              systemImage: isShowingToday ? "square.grid.3x3" : "checklist"
+            )
+            .padding(12)
+          }
+          .buttonStyle(.plain)
+          .accessibilityIdentifier(
+            isShowingToday ? "showGridButton" : "showTodayButton"
+          )
+        }
+        Spacer()
         Button {
           isIntentionFocused = false
           isShowingSyncStatus = true
@@ -119,6 +106,72 @@ struct ContentView: View {
         .accessibilityLabel("Export Habit Data")
         .accessibilityIdentifier("exportHabitDataButton")
       }
+      if isShowingToday {
+        TodayView(
+          goals: goals,
+          days: allDays.filter { $0.dateKey == effectiveTodayKey },
+          completions: allCompletions.filter { $0.dateKey == effectiveTodayKey },
+          dateKey: effectiveTodayKey,
+          onShowGrid: {
+            selectedDateKey = effectiveTodayKey
+            isShowingToday = false
+          },
+          onShowArchive: { isShowingArchive = true },
+          onReadyChanged: { todayIsReady = $0 }
+        )
+        .id(effectiveTodayKey + todayVisit.uuidString)
+      } else {
+        VStack(spacing: 0) {
+          IntentionView(
+            dateKey: selectedDateKey,
+            todayKey: effectiveTodayKey,
+            isFocused: $isIntentionFocused
+          )
+          .id(selectedDateKey)
+
+          HabitGridView(
+            goals: goals,
+            visibleDays: visibleDays,
+            completions: allCompletions,
+            hiddenDateKeys: hiddenDateKeys,
+            effectiveTodayKey: effectiveTodayKey,
+            selectedDateKey: selectedDateKey,
+            onSelectDate: { key in
+              isIntentionFocused = false
+              selectedDateKey = key
+            },
+            onDeleteDate: { day in
+              deleteDate(day.dateKey)
+            },
+            onSpawnTomorrow: {
+              spawnTomorrow()
+            },
+            onInsertDate: { key in
+              insertDate(key)
+            },
+            onGridTapped: {
+              isIntentionFocused = false
+            },
+            onShowArchive: {
+              isIntentionFocused = false
+              isShowingArchive = true
+            }
+          )
+        }
+      }
+    }
+    .onOpenURL { url in
+      guard url.scheme == "habit-tracker", url.host == "today" else { return }
+      ensureTodayExists()
+      showToday()
+    }
+    .task {
+      // Refresh even if the app remains visible across the 4 a.m. boundary.
+      while !Task.isCancelled {
+        do { try await Task.sleep(for: .seconds(30)) }
+        catch { return }
+        if effectiveTodayKey != DayBoundary.dateKey() { ensureTodayExists() }
+      }
     }
     .onAppear {
       cloudSyncMonitor.refreshAccountStatus()
@@ -152,6 +205,16 @@ struct ContentView: View {
     }
   }
 
+  private func showToday() {
+    isIntentionFocused = false
+    isShowingExport = false
+    isShowingArchive = false
+    isShowingSyncStatus = false
+    todayIsReady = false
+    todayVisit = UUID()
+    isShowingToday = true
+  }
+
   private var hiddenDateKeys: Set<String> {
     let hiddenKeys = Set(
       allDays.filter(\.isHidden).map(\.dateKey)
@@ -163,8 +226,11 @@ struct ContentView: View {
   private func ensureTodayExists() {
     let now = Date.now
     let todayKey = DayBoundary.dateKey(for: now)
-    effectiveTodayKey = todayKey
-    selectedDateKey = todayKey
+    if effectiveTodayKey != todayKey {
+      effectiveTodayKey = todayKey
+      selectedDateKey = todayKey
+      todayIsReady = false
+    }
 
     ensureDayVisible(todayKey)
     ensureDayVisible(

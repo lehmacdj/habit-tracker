@@ -7,6 +7,7 @@ struct IntentionView: View {
   let dateKey: String
   let todayKey: String
   var isFocused: FocusState<Bool>.Binding
+  var onContinue: (() -> Void)?
 
   @Query private var days: [Day]
   @State private var text: String = ""
@@ -14,11 +15,13 @@ struct IntentionView: View {
   init(
     dateKey: String,
     todayKey: String,
-    isFocused: FocusState<Bool>.Binding
+    isFocused: FocusState<Bool>.Binding,
+    onContinue: (() -> Void)? = nil
   ) {
     self.dateKey = dateKey
     self.todayKey = todayKey
     self.isFocused = isFocused
+    self.onContinue = onContinue
     let key = dateKey
     _days = Query(
       filter: #Predicate<Day> {
@@ -69,6 +72,17 @@ struct IntentionView: View {
       .onChange(of: day?.intentionText) { _, newValue in
         guard !isFocused.wrappedValue else { return }
         text = newValue ?? ""
+      }
+
+      if let onContinue {
+        Button("Continue") {
+          saveIntention(text)
+          isFocused.wrappedValue = false
+          onContinue()
+        }
+        .buttonStyle(.borderedProminent)
+        .padding(.top, 16)
+        .accessibilityIdentifier("continueIntentionButton")
       }
     }
     .padding(.horizontal)

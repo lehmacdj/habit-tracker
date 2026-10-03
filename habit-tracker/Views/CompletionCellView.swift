@@ -16,6 +16,8 @@ struct CompletionCellView: View {
   static let failedRedOpacity = 0.35
 
   let onEditNote: () -> Void
+  var isChecklist = false
+  var onMarked: ((CompletionState, CompletionState) -> Void)? = nil
   @State private var editError: String?
 
   private var completion: Completion? {
@@ -34,7 +36,7 @@ struct CompletionCellView: View {
     Group {
       if allowsTapToComplete {
         Button {
-          apply(.completed)
+          apply(isChecklist && state != .unmarked ? state : .completed)
         } label: {
           cellContent
         }
@@ -44,34 +46,14 @@ struct CompletionCellView: View {
       }
     }
     .contextMenu {
-      menuButton(
-        for: .completed,
-        title: "Complete",
-        systemImage: "checkmark"
+      CompletionStatusMenu(
+        state: state, hasNote: hasNote,
+        onApply: apply, onEditNote: onEditNote
       )
-      menuButton(
-        for: .skipped,
-        title: "Skip",
-        systemImage: "minus.circle"
-      )
-      menuButton(
-        for: .failed,
-        title: "Fail",
-        systemImage: "xmark"
-      )
-      Divider()
-      Button {
-        onEditNote()
-      } label: {
-        Label(
-          hasNote ? "Edit Note" : "Add Note",
-          systemImage: hasNote
-            ? "note.text"
-            : "note.text.badge.plus"
-        )
-      }
     }
     .accessibilityIdentifier("completion-\(goal.id)-\(dateKey)")
+    .accessibilityLabel(goal.name.isEmpty ? "Untitled habit" : goal.name)
+    .accessibilityValue(state.rawValue + (hasNote ? ", has note" : ""))
     .alert("Could Not Update Habit", isPresented: Binding(
       get: { editError != nil },
       set: { if !$0 { editError = nil } }
@@ -85,49 +67,63 @@ struct CompletionCellView: View {
     #endif
   }
 
-  /// Selecting the state a cell is already in clears it, so
-  /// the menu doubles as the way to undo a mark.
   @ViewBuilder
-  private func menuButton(
-    for target: CompletionState,
-    title: String,
-    systemImage: String
-  ) -> some View {
-    let isActive = state == target
-    Button {
-      apply(target)
-    } label: {
-      Label(
-        isActive ? "Clear \(title)" : title,
-        systemImage: isActive
-          ? "arrow.uturn.backward"
-          : systemImage
-      )
+  private var cellContent: some View {
+    if isChecklist {
+      Image(systemName: statusSymbol)
+        .font(.title2)
+        .foregroundStyle(statusColor)
+        .frame(width: 48, height: 48)
+        .background(fillColor, in: RoundedRectangle(cornerRadius: 12))
+        .overlay(alignment: .topTrailing) {
+          if hasNote {
+            Image(systemName: "note.text")
+              .font(.system(size: 9))
+              .padding(3)
+          }
+        }
+        .contentShape(Rectangle())
+    } else {
+      Rectangle()
+        .fill(fillColor)
+        .frame(width: 48, height: 48)
+        .overlay(
+          Rectangle()
+            .strokeBorder(
+              Color.secondary.opacity(0.25),
+              lineWidth: 0.5
+            )
+        )
+        .overlay(alignment: .topTrailing) {
+          if hasNote {
+            Image(systemName: "note.text")
+              .font(.system(size: 10))
+              .foregroundStyle(.secondary)
+              .padding(4)
+              .accessibilityHidden(true)
+          }
+        }
+        .contentShape(Rectangle())
+        .accessibilityValue(hasNote ? "Has note" : "")
     }
   }
 
-  private var cellContent: some View {
-    Rectangle()
-      .fill(fillColor)
-      .frame(width: 48, height: 48)
-      .overlay(
-        Rectangle()
-          .strokeBorder(
-            Color.secondary.opacity(0.25),
-            lineWidth: 0.5
-          )
-      )
-      .overlay(alignment: .topTrailing) {
-        if hasNote {
-          Image(systemName: "note.text")
-            .font(.system(size: 10))
-            .foregroundStyle(.secondary)
-            .padding(4)
-            .accessibilityHidden(true)
-        }
-      }
-      .contentShape(Rectangle())
-      .accessibilityValue(hasNote ? "Has note" : "")
+  private var statusSymbol: String {
+    switch state {
+    case .unmarked: "circle"
+    case .completed: "checkmark.circle.fill"
+    case .skipped: "minus.circle.fill"
+    case .failed: "xmark.circle.fill"
+    }
+  }
+
+  private var statusColor: Color {
+    switch state {
+    case .unmarked: .secondary
+    case .completed: .green
+    case .skipped: .yellow
+    case .failed: .red
+    }
   }
 
   private var fillColor: Color {
@@ -147,12 +143,46 @@ struct CompletionCellView: View {
 
   private func apply(_ target: CompletionState) {
     do {
-      try CompletionRecords.toggle(
+      let change = try CompletionRecords.toggle(
         target, goal: goal, dateKey: dateKey, in: modelContext
       )
+      if isChecklist { try modelContext.save() }
+      onMarked?(change.previous, change.current)
     } catch {
       editError = "The habit could not be updated. "
         + error.localizedDescription
+    }
+  }
+}
+
+/// Both screens use the same menu and status control.
+struct CompletionStatusMenu: View {
+  let state: CompletionState
+  let hasNote: Bool
+  let onApply: (CompletionState) -> Void
+  let onEditNote: () -> Void
+
+  var body: some View {
+    menuButton(.completed, title: "Complete", symbol: "checkmark")
+    menuButton(.skipped, title: "Skip", symbol: "minus.circle")
+    menuButton(.failed, title: "Fail", symbol: "xmark")
+    Divider()
+    Button(action: onEditNote) {
+      Label(
+        hasNote ? "Edit Note" : "Add Note",
+        systemImage: hasNote ? "note.text" : "note.text.badge.plus"
+      )
+    }
+  }
+
+  private func menuButton(
+    _ target: CompletionState, title: String, symbol: String
+  ) -> some View {
+    Button { onApply(target) } label: {
+      Label(
+        state == target ? "Clear \(title)" : title,
+        systemImage: state == target ? "arrow.uturn.backward" : symbol
+      )
     }
   }
 }

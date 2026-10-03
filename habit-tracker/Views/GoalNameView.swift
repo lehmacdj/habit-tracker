@@ -12,6 +12,7 @@ struct GoalNameView: View {
   var onArchive: (() -> Void)? = nil
   var dragValue: String? = nil
   var dragPreview: (() -> AnyView)? = nil
+  var textAlignment: TextAlignment = .center
 
   var body: some View {
     TextField(
@@ -22,7 +23,7 @@ struct GoalNameView: View {
     .font(.body)
     .lineLimit(1...2)
     .minimumScaleFactor(0.5)
-    .multilineTextAlignment(.center)
+    .multilineTextAlignment(textAlignment)
     .focused($isFocused)
     .disabled(!isEditing)
     .foregroundStyle(goal.name.isEmpty && !isEditing

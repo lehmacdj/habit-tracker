@@ -407,9 +407,7 @@ private struct HabitGridContent: View {
   // MARK: - Helpers
 
   private func addGoal() {
-    let maxOrder = goals.map(\.sortOrder).max() ?? -1
-    let goal = Goal(name: "", sortOrder: maxOrder + 1)
-    modelContext.insert(goal)
+    let goal = GoalEditing.add(to: goals, in: modelContext)
     newGoalId = goal.id
     DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
       if newGoalId == goal.id { newGoalId = nil }
@@ -493,21 +491,13 @@ private struct HabitGridContent: View {
     from sourceId: UUID,
     to destinationId: UUID
   ) {
-    guard sourceId != destinationId,
-      let sourceIndex = goals.firstIndex(
-        where: { $0.id == sourceId }
-      ),
-      let destinationIndex = goals.firstIndex(
-        where: { $0.id == destinationId }
-      )
+    guard let source = goals.firstIndex(where: { $0.id == sourceId }),
+      let destination = goals.firstIndex(where: { $0.id == destinationId })
     else { return }
-
-    var reordered = goals
-    let movedGoal = reordered.remove(at: sourceIndex)
-    reordered.insert(movedGoal, at: destinationIndex)
-
-    for (index, goal) in reordered.enumerated() {
-      goal.sortOrder = index
-    }
+    // Preserve the grid's existing directional drop behavior.
+    let target = source < destination
+      ? (destination + 1 < goals.count ? goals[destination + 1].id : nil)
+      : destinationId
+    GoalOrdering.move(sourceId, before: target, in: goals)
   }
 }

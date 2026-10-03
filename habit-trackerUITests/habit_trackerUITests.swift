@@ -6,11 +6,23 @@ final class habit_trackerUITests: XCTestCase {
   private let defaultTimeout: TimeInterval = 3
   private let pollInterval: TimeInterval = 0.03
 
+  @MainActor
   override func setUpWithError() throws {
     continueAfterFailure = false
     app = XCUIApplication()
     app.launchArguments = ["--uitesting"]
     app.launch()
+    openGrid()
+  }
+
+  @MainActor
+  private func openGrid() {
+    let start = app.buttons["continueIntentionButton"]
+    XCTAssertTrue(start.waitForExistence(timeout: 5))
+    start.tap()
+    let grid = app.buttons["showGridButton"]
+    XCTAssertTrue(grid.waitForExistence(timeout: 5))
+    grid.tap()
   }
 
   // MARK: - Launch, Dates, and Intention Editing
@@ -216,7 +228,7 @@ final class habit_trackerUITests: XCTestCase {
     addGoalWithName("Journal")
 
     let indicator = app.descendants(matching: .any)
-      .matching(NSPredicate(format: "value == 'Has note'"))
+      .matching(NSPredicate(format: "value CONTAINS[c] 'has note'"))
       .firstMatch
     XCTAssertFalse(
       indicator.exists,
@@ -320,9 +332,13 @@ final class habit_trackerUITests: XCTestCase {
     XCTAssertTrue(
       app.staticTexts["Recent CloudKit Activity"].exists
     )
-    XCTAssertTrue(
-      app.buttons["Check iCloud Account Again"].exists
-    )
+    let checkAccount = app.buttons["Check iCloud Account Again"]
+    // Persisted diagnostic events can put the Actions section off screen.
+    for _ in 0..<12 {
+      if checkAccount.exists && checkAccount.isHittable { break }
+      app.swipeUp()
+    }
+    XCTAssertTrue(checkAccount.exists && checkAccount.isHittable)
   }
 
   @MainActor
@@ -386,6 +402,7 @@ final class habit_trackerUITests: XCTestCase {
     app.terminate()
     app.launchArguments = ["--uitesting", "--uitesting-history"]
     app.launch()
+    openGrid()
     let grid = app.scrollViews["habitGrid"]
     XCTAssertTrue(grid.waitForExistence(timeout: 5))
     let goalID = "00000000-0000-0000-0000-000000000001"
