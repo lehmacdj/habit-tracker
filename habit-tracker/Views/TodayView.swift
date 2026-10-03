@@ -20,6 +20,8 @@ struct TodayView: View {
   @State private var pendingNote: (Goal, String)?
   @State private var editError: String?
   @State private var celebrationTrigger = 0
+  @State private var shouldAnimateCelebration = false
+  @State private var finishingGoals: [UUID: UUID] = [:]
   @AppStorage("todayCelebrationSignature") private var celebrationSignature = ""
 
   private var byGoal: [UUID: Completion] {
@@ -36,7 +38,8 @@ struct TodayView: View {
 
   private var visibleGoals: [Goal] {
     goals.filter {
-      showFinished || (byGoal[$0.id]?.state ?? .unmarked) == .unmarked
+      showFinished || finishingGoals[$0.id] != nil
+        || (byGoal[$0.id]?.state ?? .unmarked) == .unmarked
     }
   }
 
@@ -122,7 +125,7 @@ struct TodayView: View {
           "Your day starts here", systemImage: "checklist",
           description: Text("Add a habit to start your daily checklist.")
         )
-      } else if allFinished {
+      } else if allFinished && finishingGoals.isEmpty {
         VStack(spacing: 12) {
           if celebrationSignature == signature {
             Image(systemName: "party.popper.fill")
@@ -134,6 +137,13 @@ struct TodayView: View {
               )
               .accessibilityIdentifier("todayCelebration")
               .accessibilityLabel("Celebration")
+              .task(id: signature) {
+                guard shouldAnimateCelebration else { return }
+                do { try await Task.sleep(for: .milliseconds(120)) }
+                catch { return }
+                shouldAnimateCelebration = false
+                celebrationTrigger += 1
+              }
           }
           Text("All done for today")
             .font(.title2.weight(.semibold))
@@ -223,17 +233,37 @@ struct TodayView: View {
         },
         isChecklist: true,
         onMarked: { previous, current in
+          // Save immediately, but keep the row around long enough for
+          // the new status to be visible before fading it away.
+          finishingGoals[goal.id] = !showFinished && current != .unmarked
+            ? UUID() : nil
           didMark(current, wasUnfinished: previous == .unmarked)
         }
       )
     }
     .padding(4)
     .background(.quaternary.opacity(0.3), in: RoundedRectangle(cornerRadius: 16))
+    .background {
+      RoundedRectangle(cornerRadius: 16)
+        .fill(byGoal[goal.id]?.state == .completed
+          ? Color.green.opacity(0.16) : .clear)
+        .animation(.easeOut(duration: 0.18), value: byGoal[goal.id]?.state)
+    }
     .accessibilityElement(children: .contain)
     .accessibilityIdentifier("todayHabit-\(goal.id)")
     .dropDestination(for: HabitDragItem.self) { items, _ in
       move(items.map(\.id), before: goal.id)
     }
+    .task(id: finishingGoals[goal.id]) {
+      guard let token = finishingGoals[goal.id] else { return }
+      do { try await Task.sleep(for: .milliseconds(250)) }
+      catch { return }
+      guard finishingGoals[goal.id] == token else { return }
+      withAnimation(reduceMotion ? nil : .easeOut(duration: 0.35)) {
+        finishingGoals[goal.id] = nil
+      }
+    }
+    .onDisappear { finishingGoals[goal.id] = nil }
   }
 
   private func continueToHabits() {
@@ -261,15 +291,10 @@ struct TodayView: View {
         celebrationSignature = TodayHabits.signature(
           dateKey: dateKey, goals: goals, records: latest
         )
-        if wasUnfinished {
-          Task { @MainActor in
-            // Give the celebratory graphic time to enter the view tree.
-            try? await Task.sleep(for: .milliseconds(120))
-            celebrationTrigger += 1
-          }
-        }
+        shouldAnimateCelebration = wasUnfinished
       } else {
         celebrationSignature = ""
+        shouldAnimateCelebration = false
       }
     } catch {
       editError = "The updated habits could not be read. " + error.localizedDescription

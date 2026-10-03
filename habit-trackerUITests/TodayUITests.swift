@@ -100,9 +100,9 @@ final class TodayUITests: XCTestCase {
   func testFinishedHabitsInterleaveAndClearWithOneTap() {
     startDay()
     choose("Skip", for: 2)
-    XCTAssertFalse(status(2).exists)
+    XCTAssertTrue(status(2).waitForNonExistence(timeout: 3))
     status(1).tap()
-    XCTAssertFalse(status(1).exists)
+    XCTAssertTrue(status(1).waitForNonExistence(timeout: 3))
     app.buttons["toggleFinishedButton"].tap()
     XCTAssertTrue(status(2).waitForExistence(timeout: 3))
     XCTAssertLessThan(name("History 1").frame.minY, name("History 2").frame.minY)
@@ -123,6 +123,7 @@ final class TodayUITests: XCTestCase {
   func testDragAcrossHiddenHabitChangesGridOrder() {
     startDay()
     status(2).tap()
+    XCTAssertTrue(status(2).waitForNonExistence(timeout: 3))
     let handle = app.images["reorder-\(goalID(3))"]
     XCTAssertTrue(handle.exists)
     handle.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
@@ -150,7 +151,9 @@ final class TodayUITests: XCTestCase {
   func testFailingLastHabitSuppressesCelebrationAndSkipAllowsIt() {
     startDay()
     status(1).tap()
+    XCTAssertTrue(status(1).waitForNonExistence(timeout: 3))
     status(2).tap()
+    XCTAssertTrue(status(2).waitForNonExistence(timeout: 3))
     choose("Fail", for: 3)
     XCTAssertTrue(app.staticTexts["All done for today"].waitForExistence(timeout: 3))
     XCTAssertFalse(app.images["todayCelebration"].exists)
