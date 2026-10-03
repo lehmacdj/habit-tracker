@@ -49,18 +49,30 @@ struct TodayView: View {
   }
 
   private var content: some View {
-    VStack(spacing: 0) {
-      if !hasContinued { Spacer(minLength: 0) }
-      IntentionView(
-        dateKey: dateKey, todayKey: dateKey,
-        isFocused: $isIntentionFocused,
-        onContinue: continueAction
-      )
-      if hasContinued {
-        checklist
-      } else {
-        Spacer(minLength: 0)
+    GeometryReader { geometry in
+      ScrollView {
+        VStack(spacing: 0) {
+          if !hasContinued { Spacer(minLength: 0) }
+          IntentionView(
+            dateKey: dateKey, todayKey: dateKey,
+            isFocused: $isIntentionFocused,
+            onContinue: continueAction,
+            verticalPadding: 12
+          )
+          if hasContinued {
+            checklist
+          } else {
+            Spacer(minLength: 0)
+          }
+        }
+        .frame(maxWidth: 640)
+        .frame(maxWidth: .infinity)
+        .frame(minHeight: hasContinued ? nil : geometry.size.height)
       }
+      .scrollDismissesKeyboard(.interactively)
+      .accessibilityIdentifier(
+        hasContinued ? "todayChecklist" : "todayIntentionPrompt"
+      )
     }
   }
 
@@ -104,106 +116,85 @@ struct TodayView: View {
   }
 
   private var checklist: some View {
-    ScrollView {
-      LazyVStack(spacing: 12) {
-        if goals.isEmpty {
-          ContentUnavailableView(
-            "Your day starts here", systemImage: "checklist",
-            description: Text("Add a habit to start your daily checklist.")
-          )
-        } else if allFinished {
-          VStack(spacing: 12) {
-            if celebrationSignature == signature {
-              Image(systemName: "party.popper.fill")
-                .font(.system(size: 64))
-                .foregroundStyle(.orange, .pink)
-                .symbolEffect(
-                  .bounce, options: .nonRepeating,
-                  value: reduceMotion ? 0 : celebrationTrigger
-                )
-                .accessibilityIdentifier("todayCelebration")
-                .accessibilityLabel("Celebration")
-            }
-            Text("All done for today")
-              .font(.title2.weight(.semibold))
+    LazyVStack(spacing: 6) {
+      if goals.isEmpty {
+        ContentUnavailableView(
+          "Your day starts here", systemImage: "checklist",
+          description: Text("Add a habit to start your daily checklist.")
+        )
+      } else if allFinished {
+        VStack(spacing: 12) {
+          if celebrationSignature == signature {
+            Image(systemName: "party.popper.fill")
+              .font(.system(size: 64))
+              .foregroundStyle(.orange, .pink)
+              .symbolEffect(
+                .bounce, options: .nonRepeating,
+                value: reduceMotion ? 0 : celebrationTrigger
+              )
+              .accessibilityIdentifier("todayCelebration")
+              .accessibilityLabel("Celebration")
           }
-          .frame(maxWidth: .infinity)
-          .padding(.vertical, 24)
+          Text("All done for today")
+            .font(.title2.weight(.semibold))
         }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 24)
+      }
 
-        ForEach(visibleGoals) { goal in
-          habitRow(goal)
-        }
+      ForEach(visibleGoals) { goal in
+        habitRow(goal)
+          .transition(.opacity)
+      }
 
-        Button {
-          isIntentionFocused = false
-          let goal = GoalEditing.add(to: goals, in: modelContext)
-          newGoalID = goal.id
-          Task { @MainActor in
-            try? await Task.sleep(for: .seconds(1))
-            if newGoalID == goal.id { newGoalID = nil }
-          }
-        } label: {
-          Label("Add habit", systemImage: "plus")
-            .frame(maxWidth: .infinity, minHeight: 44)
-            .contentShape(Rectangle())
+      Button {
+        isIntentionFocused = false
+        let goal = GoalEditing.add(to: goals, in: modelContext)
+        newGoalID = goal.id
+        Task { @MainActor in
+          try? await Task.sleep(for: .seconds(1))
+          if newGoalID == goal.id { newGoalID = nil }
         }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("addGoalButton")
-        .contextMenu {
-          Button("Restore Archived Goal", systemImage: "archivebox") {
-            onShowArchive()
-          }
-        }
-        .dropDestination(for: HabitDragItem.self) { items, _ in
-          move(items.map(\.id), before: nil)
-        }
-
-        if finishedCount > 0 {
-          Button {
-            withAnimation { showFinished.toggle() }
-          } label: {
-            Label(
-              showFinished ? "Hide finished" : "Show finished (\(finishedCount))",
-              systemImage: showFinished ? "eye.slash" : "eye"
-            )
-          }
-          .buttonStyle(.plain)
-          .foregroundStyle(.secondary)
-          .padding(.vertical, 12)
-          .accessibilityIdentifier("toggleFinishedButton")
+      } label: {
+        Label("Add habit", systemImage: "plus")
+          .frame(maxWidth: .infinity, minHeight: 44)
+          .contentShape(Rectangle())
+      }
+      .buttonStyle(.plain)
+      .accessibilityIdentifier("addGoalButton")
+      .contextMenu {
+        Button("Restore Archived Goal", systemImage: "archivebox") {
+          onShowArchive()
         }
       }
-      .frame(maxWidth: 640)
-      .frame(maxWidth: .infinity)
-      .padding(.horizontal, 20)
-      .padding(.bottom, 24)
+      .dropDestination(for: HabitDragItem.self) { items, _ in
+        move(items.map(\.id), before: nil)
+      }
+
+      if finishedCount > 0 {
+        Button {
+          withAnimation(.easeInOut(duration: 0.2)) {
+            showFinished.toggle()
+          }
+        } label: {
+          Label(
+            showFinished ? "Hide finished" : "Show finished (\(finishedCount))",
+            systemImage: showFinished ? "eye.slash" : "eye"
+          )
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(.secondary)
+        .padding(.vertical, 8)
+        .accessibilityIdentifier("toggleFinishedButton")
+      }
     }
-    .scrollDismissesKeyboard(.interactively)
-    .accessibilityIdentifier("todayChecklist")
+    .padding(.horizontal, 12)
+    .padding(.bottom, 12)
   }
 
   private func habitRow(_ goal: Goal) -> some View {
     let records = completions.filter { $0.goal?.id == goal.id }
-    return HStack(spacing: 12) {
-      CompletionCellView(
-        completions: records, goal: goal, dateKey: dateKey,
-        allowsTapToComplete: true,
-        onEditNote: {
-          isIntentionFocused = false
-          noteGoal = goal
-        },
-        isChecklist: true,
-        onMarked: { previous, current in
-          didMark(current, wasUnfinished: previous == .unmarked)
-        }
-      )
-      GoalNameView(
-        goal: goal, streakLength: nil,
-        startEditing: goal.id == newGoalID,
-        onArchive: { archive(goal) },
-        textAlignment: .leading
-      )
+    return HStack(spacing: 8) {
       Image(systemName: "line.3.horizontal")
         .foregroundStyle(.tertiary)
         .frame(width: 44, height: 48)
@@ -217,8 +208,26 @@ struct TodayView: View {
         .accessibilityIdentifier("reorder-\(goal.id)")
         .accessibilityAction(named: "Move up") { moveUp(goal) }
         .accessibilityAction(named: "Move down") { moveDown(goal) }
+      GoalNameView(
+        goal: goal, streakLength: nil,
+        startEditing: goal.id == newGoalID,
+        onArchive: { archive(goal) },
+        textAlignment: .leading
+      )
+      CompletionCellView(
+        completions: records, goal: goal, dateKey: dateKey,
+        allowsTapToComplete: true,
+        onEditNote: {
+          isIntentionFocused = false
+          noteGoal = goal
+        },
+        isChecklist: true,
+        onMarked: { previous, current in
+          didMark(current, wasUnfinished: previous == .unmarked)
+        }
+      )
     }
-    .padding(8)
+    .padding(4)
     .background(.quaternary.opacity(0.3), in: RoundedRectangle(cornerRadius: 16))
     .accessibilityElement(children: .contain)
     .accessibilityIdentifier("todayHabit-\(goal.id)")

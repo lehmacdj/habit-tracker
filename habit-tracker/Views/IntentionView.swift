@@ -8,6 +8,7 @@ struct IntentionView: View {
   let todayKey: String
   var isFocused: FocusState<Bool>.Binding
   var onContinue: (() -> Void)?
+  var verticalPadding: CGFloat
 
   @Query private var days: [Day]
   @State private var text: String = ""
@@ -16,12 +17,14 @@ struct IntentionView: View {
     dateKey: String,
     todayKey: String,
     isFocused: FocusState<Bool>.Binding,
-    onContinue: (() -> Void)? = nil
+    onContinue: (() -> Void)? = nil,
+    verticalPadding: CGFloat = 24
   ) {
     self.dateKey = dateKey
     self.todayKey = todayKey
     self.isFocused = isFocused
     self.onContinue = onContinue
+    self.verticalPadding = verticalPadding
     let key = dateKey
     _days = Query(
       filter: #Predicate<Day> {
@@ -86,7 +89,7 @@ struct IntentionView: View {
       }
     }
     .padding(.horizontal)
-    .padding(.vertical, 24)
+    .padding(.vertical, verticalPadding)
     .contentShape(Rectangle())
     .onTapGesture {
       // Tapping the background around the text field
