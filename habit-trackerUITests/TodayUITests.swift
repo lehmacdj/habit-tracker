@@ -120,6 +120,76 @@ final class TodayUITests: XCTestCase {
     XCTAssertTrue(status(2).exists)
   }
 
+  func testChecklistFooterDoesNotAddHabitsFromNearbyTaps() {
+    startDay()
+    let addButton = app.buttons["addGoalButton"]
+    let lastRow = app.otherElements["todayHabit-\(goalID(3))"]
+    let origin = app.coordinate(withNormalizedOffset: .zero)
+    let completionX = status(3).frame.midX
+    XCTAssertGreaterThanOrEqual(addButton.frame.height, 44)
+    XCTAssertLessThan(addButton.frame.maxX, status(3).frame.minX)
+    XCTAssertGreaterThanOrEqual(addButton.frame.minY - lastRow.frame.maxY, 32)
+
+    // Misses below the last row and beside Add must be inert.
+    origin.withOffset(CGVector(
+      dx: addButton.frame.midX, dy: lastRow.frame.maxY + 12
+    )).tap()
+    for x in [status(3).frame.midX, app.images[
+      "reorder-\(goalID(3))"
+    ].frame.midX] {
+      origin.withOffset(CGVector(dx: x, dy: addButton.frame.midY)).tap()
+    }
+    XCTAssertFalse(app.keyboards.firstMatch.exists)
+    XCTAssertEqual(app.descendants(matching: .any)
+      .matching(identifier: "goalNameField").count, 3)
+
+    let formerCompletion = origin.withOffset(CGVector(
+      dx: status(3).frame.midX, dy: status(3).frame.midY
+    ))
+    status(3).tap()
+    XCTAssertTrue(status(3).waitForNonExistence(timeout: 3))
+    formerCompletion.tap()
+    XCTAssertFalse(app.keyboards.firstMatch.exists)
+    let toggle = app.buttons["toggleFinishedButton"]
+    XCTAssertLessThan(toggle.frame.maxY, addButton.frame.minY)
+    origin.withOffset(CGVector(
+      dx: completionX, dy: addButton.frame.midY
+    )).tap()
+    toggle.tap()
+    XCTAssertTrue(status(3).waitForExistence(timeout: 3))
+    XCTAssertEqual(app.descendants(matching: .any)
+      .matching(identifier: "goalNameField").count, 3)
+    let screenshot = XCTAttachment(screenshot: app.screenshot())
+    screenshot.name = "Separated checklist actions"
+    screenshot.lifetime = .keepAlways
+    add(screenshot)
+  }
+
+  func testChecklistFooterKeepsFullWidthDropTarget() {
+    startDay()
+    let handle = app.images["reorder-\(goalID(1))"]
+    let destination = app.coordinate(withNormalizedOffset: .zero)
+      .withOffset(CGVector(
+        dx: handle.frame.midX,
+        dy: app.buttons["addGoalButton"].frame.midY
+      ))
+    handle.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+      .press(
+        forDuration: 0.8, thenDragTo: destination,
+        withVelocity: .slow, thenHoldForDuration: 0.5
+      )
+    let reordered = NSPredicate { [self] _, _ in
+      name("History 1").frame.minY > name("History 3").frame.minY
+    }
+    XCTAssertEqual(XCTWaiter.wait(for: [
+      XCTNSPredicateExpectation(predicate: reordered, object: nil)
+    ], timeout: 3), .completed)
+    XCTAssertFalse(app.keyboards.firstMatch.exists)
+    app.buttons["addGoalButton"].press(forDuration: 1.2)
+    app.buttons["Restore Archived Goal"].tap()
+    XCTAssertTrue(app.staticTexts["Archived Goals"].waitForExistence(timeout: 3))
+  }
+
   func testDragAcrossHiddenHabitChangesGridOrder() {
     startDay()
     status(2).tap()

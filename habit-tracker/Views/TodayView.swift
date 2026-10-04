@@ -157,30 +157,15 @@ struct TodayView: View {
           .transition(.opacity)
       }
 
-      Button {
-        isIntentionFocused = false
-        let goal = GoalEditing.add(to: goals, in: modelContext)
-        newGoalID = goal.id
-        Task { @MainActor in
-          try? await Task.sleep(for: .seconds(1))
-          if newGoalID == goal.id { newGoalID = nil }
-        }
-      } label: {
-        Label("Add habit", systemImage: "plus")
-          .frame(maxWidth: .infinity, minHeight: 44)
-          .contentShape(Rectangle())
-      }
-      .buttonStyle(.plain)
-      .accessibilityIdentifier("addGoalButton")
-      .contextMenu {
-        Button("Restore Archived Goal", systemImage: "archivebox") {
-          onShowArchive()
-        }
-      }
-      .dropDestination(for: HabitDragItem.self) { items, _ in
-        move(items.map(\.id), before: nil)
-      }
+      checklistActions
+        .padding(.top, 32)
+    }
+    .padding(.horizontal, 12)
+    .padding(.bottom, 12)
+  }
 
+  private var checklistActions: some View {
+    VStack(spacing: 12) {
       if finishedCount > 0 {
         Button {
           withAnimation(.easeInOut(duration: 0.2)) {
@@ -191,15 +176,48 @@ struct TodayView: View {
             showFinished ? "Hide finished" : "Show finished (\(finishedCount))",
             systemImage: showFinished ? "eye.slash" : "eye"
           )
+          .padding(.horizontal, 12)
+          .frame(minHeight: 44)
+          .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .foregroundStyle(.secondary)
-        .padding(.vertical, 8)
         .accessibilityIdentifier("toggleFinishedButton")
       }
+
+      Button {
+        isIntentionFocused = false
+        let goal = GoalEditing.add(to: goals, in: modelContext)
+        newGoalID = goal.id
+        Task { @MainActor in
+          try? await Task.sleep(for: .seconds(1))
+          if newGoalID == goal.id { newGoalID = nil }
+        }
+      } label: {
+        Label("Add habit", systemImage: "plus")
+          .padding(.horizontal, 16)
+          .frame(minHeight: 44)
+          .background(.quaternary, in: Capsule())
+          .contentShape(Capsule())
+      }
+      .buttonStyle(.plain)
+      .accessibilityIdentifier("addGoalButton")
+      .contextMenu {
+        Button("Restore Archived Goal", systemImage: "archivebox") {
+          onShowArchive()
+        }
+      }
     }
-    .padding(.horizontal, 12)
-    .padding(.bottom, 12)
+    // Keep the drop area broad without making empty space tappable.
+    .frame(maxWidth: .infinity)
+    .background {
+      Color.clear
+        .contentShape(Rectangle())
+        .dropDestination(for: HabitDragItem.self) { items, _ in
+          move(items.map(\.id), before: nil)
+        }
+        .accessibilityHidden(true)
+    }
   }
 
   private func habitRow(_ goal: Goal) -> some View {
