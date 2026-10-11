@@ -1,21 +1,6 @@
 import Foundation
 import SwiftData
 
-/// How a goal was resolved on a particular day.
-enum CompletionState: String, Codable, CaseIterable, Sendable {
-  /// Nothing was recorded, or a previous mark was cleared.
-  case unmarked
-  /// The goal was done.
-  case completed
-  /// The goal was intentionally skipped. Skipped days are
-  /// not completions, but they also do not break a streak.
-  case skipped
-  /// The goal was explicitly not done. Like an unmarked day
-  /// it counts against a streak, but it records a decision
-  /// rather than an absence.
-  case failed
-}
-
 @Model
 final class Completion {
   var id: UUID = UUID()

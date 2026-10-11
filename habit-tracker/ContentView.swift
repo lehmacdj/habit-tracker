@@ -194,6 +194,14 @@ struct ContentView: View {
         }
       )
     }
+    #if os(iOS)
+    .background {
+      WatchSummaryUpdater(
+        dateKey: effectiveTodayKey, goals: goals,
+        days: allDays, completions: allCompletions
+      )
+    }
+    #endif
     .sheet(isPresented: $isShowingExport) {
       ExportDataView()
     }

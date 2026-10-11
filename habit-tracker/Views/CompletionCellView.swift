@@ -70,7 +70,7 @@ struct CompletionCellView: View {
   @ViewBuilder
   private var cellContent: some View {
     if isChecklist {
-      Image(systemName: statusSymbol)
+      Image(systemName: state.symbol)
         .font(.title2)
         .foregroundStyle(statusColor)
         .frame(width: 48, height: 48)
@@ -105,15 +105,6 @@ struct CompletionCellView: View {
         }
         .contentShape(Rectangle())
         .accessibilityValue(hasNote ? "Has note" : "")
-    }
-  }
-
-  private var statusSymbol: String {
-    switch state {
-    case .unmarked: "circle"
-    case .completed: "checkmark.circle.fill"
-    case .skipped: "minus.circle.fill"
-    case .failed: "xmark.circle.fill"
     }
   }
 
@@ -163,9 +154,9 @@ struct CompletionStatusMenu: View {
   let onEditNote: () -> Void
 
   var body: some View {
-    menuButton(.completed, title: "Complete", symbol: "checkmark")
-    menuButton(.skipped, title: "Skip", symbol: "minus.circle")
-    menuButton(.failed, title: "Fail", symbol: "xmark")
+    menuButton(.completed, title: "Complete")
+    menuButton(.skipped, title: "Skip")
+    menuButton(.failed, title: "Fail")
     Divider()
     Button(action: onEditNote) {
       Label(
@@ -176,12 +167,13 @@ struct CompletionStatusMenu: View {
   }
 
   private func menuButton(
-    _ target: CompletionState, title: String, symbol: String
+    _ target: CompletionState, title: String
   ) -> some View {
     Button { onApply(target) } label: {
       Label(
         state == target ? "Clear \(title)" : title,
-        systemImage: state == target ? "arrow.uturn.backward" : symbol
+        systemImage: state == target
+          ? CompletionState.unmarked.actionSymbol : target.actionSymbol
       )
     }
   }

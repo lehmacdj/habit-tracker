@@ -76,6 +76,11 @@ struct habit_trackerApp: App {
         try UITestHistory.seed(in: container.mainContext)
       }
       #endif
+      #if os(iOS)
+      if !Self.isTesting {
+        PhoneWatchSync.shared.start(container: container)
+      }
+      #endif
       return container
     } catch {
       fatalError(
