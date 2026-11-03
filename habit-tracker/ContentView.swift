@@ -4,6 +4,7 @@ import SwiftData
 struct ContentView: View {
   @Environment(\.modelContext) private var modelContext
   @Environment(\.scenePhase) private var scenePhase
+  @Environment(\.undoManager) private var undoManager
 
   @Query(
     filter: #Predicate<Goal> {
@@ -160,6 +161,10 @@ struct ContentView: View {
         }
       }
     }
+    .onChange(of: undoManager, initial: true) { _, manager in
+      // Lets ⌘Z and ⇧⌘Z undo and redo edits through the window's manager.
+      modelContext.undoManager = manager
+    }
     .onOpenURL { url in
       guard url.scheme == "habit-tracker", url.host == "today" else { return }
       ensureTodayExists()
@@ -240,10 +245,13 @@ struct ContentView: View {
       todayIsReady = false
     }
 
-    ensureDayVisible(todayKey)
-    ensureDayVisible(
-      DayBoundary.yesterdayKey(from: todayKey)
-    )
+    // Undo must not remove the days the app keeps for the user.
+    modelContext.withoutUndo {
+      ensureDayVisible(todayKey)
+      ensureDayVisible(
+        DayBoundary.yesterdayKey(from: todayKey)
+      )
+    }
   }
 
   /// Spawns tomorrow's date to the right of today.
