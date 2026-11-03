@@ -21,6 +21,16 @@ enum DayBoundary {
     return formatter.string(from: adjusted)
   }
 
+  /// True from 4:00 PM until the 4:00 AM boundary ends the logical day,
+  /// when it is too late to bother prompting for an unset intention.
+  static func isLateInDay(
+    _ date: Date = .now,
+    calendar: Calendar = .current
+  ) -> Bool {
+    let hour = calendar.component(.hour, from: date)
+    return hour >= 16 || hour < 4
+  }
+
   /// Formats a calendar date without applying the 4:00 AM
   /// logical-day boundary.
   static func calendarDateKey(for date: Date) -> String {

@@ -83,6 +83,7 @@ struct TodayView: View {
     content
     .onAppear {
       hasContinued = TodayHabits.intentionIsSatisfied(days)
+        || (!Self.isUITesting && DayBoundary.isLateInDay())
       onReadyChanged(hasContinued)
     }
     .onChange(of: TodayHabits.intentionIsSatisfied(days)) { _, satisfied in
@@ -117,6 +118,10 @@ struct TodayView: View {
       Text(editError ?? "Please try again.")
     }
   }
+
+  /// UI tests expect the intention prompt regardless of the hour.
+  private static let isUITesting =
+    ProcessInfo.processInfo.arguments.contains("--uitesting")
 
   private var checklist: some View {
     LazyVStack(spacing: 6) {

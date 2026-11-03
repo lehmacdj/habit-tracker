@@ -49,6 +49,21 @@ struct TodayHabitsTests {
     #expect(TodayHabits.intentionIsSatisfied([old, new]))
   }
 
+  @Test func lateInDaySpansFourPMToTheFourAMBoundary() throws {
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = try #require(TimeZone(identifier: "UTC"))
+    func at(_ hour: Int, _ minute: Int = 0) throws -> Date {
+      try #require(calendar.date(from: DateComponents(
+        year: 2026, month: 11, day: 3, hour: hour, minute: minute
+      )))
+    }
+    #expect(!DayBoundary.isLateInDay(try at(4), calendar: calendar))
+    #expect(!DayBoundary.isLateInDay(try at(15, 59), calendar: calendar))
+    #expect(DayBoundary.isLateInDay(try at(16), calendar: calendar))
+    #expect(DayBoundary.isLateInDay(try at(23, 59), calendar: calendar))
+    #expect(DayBoundary.isLateInDay(try at(3, 59), calendar: calendar))
+  }
+
   @Test func celebrationsRequireFinishedHabitsAndAnAllowedFinalMark() {
     #expect(TodayHabits.shouldCelebrate(
       states: [.failed, .completed], finalMark: .completed

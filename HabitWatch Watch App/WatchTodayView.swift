@@ -46,7 +46,7 @@ struct WatchTodayView: View {
       }
     }
     .navigationTitle("Today")
-    .onAppear { hasContinued = intentionIsSet }
+    .onAppear { hasContinued = intentionIsSet || DayBoundary.isLateInDay() }
     .onChange(of: intentionIsSet) { _, isSet in
       if isSet && !isEditingIntention { hasContinued = true }
     }
