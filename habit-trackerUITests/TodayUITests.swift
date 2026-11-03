@@ -111,7 +111,7 @@ final class TodayUITests: XCTestCase {
     status(2).tap()
     XCTAssertEqual(status(2).value as? String, "unmarked")
     app.buttons["toggleFinishedButton"].tap()
-    XCTAssertFalse(status(1).exists)
+    XCTAssertTrue(status(1).waitForNonExistence(timeout: 3))
     XCTAssertTrue(status(2).exists)
     app.buttons["showGridButton"].tap()
     app.buttons["showTodayButton"].tap()
